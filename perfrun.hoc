@@ -37,8 +37,11 @@ proc prun() {local x, y, i
 proc prun1() {local x, y, i
 	runtime=startsw()
 	tdat_.x[0] = pnm.pc.wait_time
+	cvode.cache_efficient(1)
 	if (pc.id == 0) { printf("Before stdinit FreeMem %ld\n", pc.send_time(11))}
 	stdinit()
+	if (pc.id == 0) { printf("write coredat files\n")}
+	pc.nrnbbcore_write("coredat")
 	x = startsw()
 	stdinit_time = x - runtime
 	if (pnm.pc.id == 0) printf("stdinit %g\n", x - runtime)

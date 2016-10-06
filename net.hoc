@@ -44,11 +44,11 @@ proc connect_cells() { local i, j, gid, r, d, npre, off   localobj cell
 	d = 1
 	for pcitr(&i, &gid) {
 		cell = pnm.cells.object(i)
-		cell.ranstart(connect_random_low_offset_*ncell)
+		cell.ranstart(connect_random_low_offset_, ncell, 1)
 		npre = cell.r.discunif(ncon - nconrange/2, ncon + nconrange/2)
 	    if (constyle == 0) {
 		cell.r.discunif(1, ncell-1) // 0 refers to "this"
-		cell.ranstart(connect_random_low_offset_*ncell)
+		cell.ranstart(connect_random_low_offset_, ncell, 2)
 		for j=0, npre-1 {
 			r = (cell.r.repick + gid)%ncell // can never be gid
 			pnm.nc_append(r, gid, -1, 0, d)
@@ -68,6 +68,7 @@ proc connect_cells() { local i, j, gid, r, d, npre, off   localobj cell
 
 
 proc init_run_random() {local i, gid  localobj cell
+	return // now done in invlfire
 	for pcitr(&i, &gid) {
 		cell = pnm.cells.object(i)
 		cell.r.uniform(mininvl,maxinvl) //interval variation

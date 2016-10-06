@@ -1,0 +1,11 @@
+done = 0
+{load_file("init.hoc")}
+
+if (1) {
+	seq = 0
+	ncellpow = 12
+	mkmodel(ncellpow, 1000)
+	{use2phase = 0 doseries(1)}
+}
+
+finish()

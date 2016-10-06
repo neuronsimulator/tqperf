@@ -5,6 +5,9 @@
 
 // modified from NetGUI hoc output to add the random interval
 
+  invl_low_IntervalFire = 10
+  invl_high_IntervalFire = 20
+
 begintemplate IF_IntervalFire
 public pp, connect2target, x, y, z, position, is_art, r, hseed, lseed, ranstart
 objref pp, r
@@ -12,16 +15,14 @@ proc init() {
   lseed = $2
   hseed = $1
   pp = new IntervalFire()
+  pp.set_rand123($1, $2, 0)
   r = new Random()
-  ranstart()
-  pp.set_rand(r)
-  r.uniform(10,20)
 }
-func ranstart() {local offset
-  offset = 1
-  if (numarg() == 1) { offset = $1 }
-  return r.MCellRan4(hseed, lseed+offset)
+
+func ranstart() {
+  return r.Random123($1, $2, $3)
 }
+
 func is_art() { return 1 }
 proc connect2target() { $o2 = new NetCon(pp, $o1) }
 proc position(){x=$1  y=$2  z=$3}
