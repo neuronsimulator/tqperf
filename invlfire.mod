@@ -191,6 +191,7 @@ ENDVERBATIM
 }
 
 VERBATIM
+#if !NRNBBCORE
 static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargsproto_) {
   /* error if using the legacy scop_exprand */
   if (!_p_r) {
@@ -214,6 +215,7 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
   }
   *offset += 3;
 }
+#endif
 
 static void bbcore_read(double* x, int* d, int* xx, int* offset, _threadargsproto_) {
   assert(!_p_r);
