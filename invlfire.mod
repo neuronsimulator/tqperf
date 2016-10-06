@@ -135,6 +135,7 @@ VERBATIM {
   invl = nrnran123_dblpick((nrnran123_State*)_p_r); 
 #endif
 
+  invl = invl_low + (invl_high-invl_low)*invl;
   if (t >= burst_start && t <= burst_stop) {
     invl *= burst_factor;
   }
