@@ -1,0 +1,16 @@
+obfunc mk_randist() {local i, n, ncell, nhost, id  localobj x, r, gidvec
+	ncell = $1
+	nhost = $2	
+	id = $3
+	gidvec = new Vector()
+	x = new Vector(ncell)
+	r = new Random()
+	r.MCellRan4(1,1)
+	r.uniform(0,ncell)
+	x.addrand(r)
+	x = x.sortindex()
+	n = ncell/nhost
+	gidvec = x.c(id*n, (id+1)*n-1)
+	return gidvec.sort
+}
+

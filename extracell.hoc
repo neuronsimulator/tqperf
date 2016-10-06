@@ -1,0 +1,19 @@
+// extra time for computation via extra unconnected cells
+begintemplate XCell
+public soma
+create soma
+proc init() {
+	soma {
+		insert hh
+	}
+}
+endtemplate XCell
+
+objref xcell_list
+proc mk_extra_cells() {local i
+	n_xcell = $1
+	xcell_list = new List()
+	for i=0, $1-1 {
+		xcell_list.append(new XCell())
+	}
+}

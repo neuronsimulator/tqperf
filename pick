@@ -1,0 +1,22 @@
+#!/bin/bash
+
+cd dat
+f=`grep -l "$2" ${1}*`
+echo $1
+shift
+while test "$1" != "" ; do
+  i=$1
+  shift
+  j=$1
+  shift
+  i="$i = $j"
+  f=`grep -l "$i" $f`
+  echo $i
+  if test "$f" = "" ; then
+    break
+  fi
+done
+
+for i in $f ; do
+echo "ag(\"dat/$i\")"
+done

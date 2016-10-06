@@ -1,0 +1,261 @@
+/* File is constructed in perfrun.hoc by printing the tperf for rank 0
+using p_perf where the vector tperf is retrieved after a psolve via
+	tdat_.x[5] = pnm.pc.send_time(4, chist, tperf)
+The first item in the file after the header is the size of tperf
+See bgpdma.cpp nrn_bgp_receive_time for the meaning of the first arg. In
+particular, 4 returns the number of extra conservation checks, fills chist
+with the histogram of number of intervals using 0-11 conservation checks,
+and fills tperf with itbuf items with the itbuf+1 item being the DCMF_Tick().
+The items are in sets of DCMF_Timebase() as indicated below.
+It seems itbuf is initialized only at launch and not in bgp_dma_init (which
+would allow multiple runs per launch).
+All the TBUF fills take place in bgp_dma_receive
+Given the several multisend methods we are using and the variation in
+network parameters, it is a good idea to prepend run information to the file
+*/
+// allgather 201 sets of
+// enter nrn_spike_exchange_compressed
+// another immediately
+// after barrier
+// after nrnmpi_spike_exchange_compressed (allgather, allgatherv)
+// 0
+// 0
+// #sent (cells that spiked
+// #received
+// exit nrn_spike_exchange_compressed
+
+// multisend 401 sets of
+// enter bgp_dma_receive
+// after DCMF_Messager_advance
+// after barrier
+// after conserve
+// ncons
+// #cells_that_fired
+// #sent (cell spiked * fanout)
+// #received
+// if ENQUEUE == 1 then incoming spikes are saved in buffer, TBUF, then to queue
+// exit bgp_dma_receive
+
+{load_file("nrngui.hoc")}
+objref td[1]
+strdef fname
+proc rd() {local i, j, k, size, toff, tm, methodinfo \
+  localobj f, indices, s
+	f = new File()
+	f.chooser("r", "Read", "*.dat")
+	if (numarg() == 1) {
+		fname = $s1
+	}else{
+		if (!f.chooser()){
+			quit()
+		}
+		fname = f.getname()
+	}
+	f.ropen(fname)
+	// read header
+	s = new String()
+	f.gets(s.s)
+	nver=0
+	sscanf(s.s, "%*[^(](%d)", &nver)	
+	f.gets(s.s)
+	methodinfo = f.scanvar()
+	method = methodinfo%4
+	enqueue=int(methodinfo/32)
+	if (method == 0) { enqueue = 0 }
+	n_bgp_interval = (int(methodinfo/4)%2) + 1
+printf("method=%d n_bgp_interval=%d enqueue=%d\n", method, n_bgp_interval,enqueue)
+	while(1) {
+		f.gets(s.s)
+		if (strcmp(s.s,"@@@end header@@@\n") == 0) { break }
+	}
+
+	if (nver < 519) {
+		nd = 8 + (enqueue == 1)
+		enq1 = 7
+	}else{
+		nd = 9 + (enqueue == 1)
+		enq1 = 8
+	}
+	objref td[nd]
+
+	// read data
+	size = (f.scanvar()-1)/nd
+	print size
+	for i=0, nd-1 {td[i] = new Vector(size)}
+	for i = 0, size-1 {
+		for j=0,nd-1 {
+			td[j].x[i] = f.scanvar()
+		}
+	}
+	ts = f.scanvar()
+	tm = 2^32
+	toff = td[0].x[0]
+	indices = new Vector()
+	indices.append(0, 1, 2, 3, enq1)
+	if (enqueue == 1) indices.append(nd-1)
+	for k=0, indices.size-1 {
+		j = indices.x[k]
+		// all vectors start at 0
+		td[j].sub(toff)
+		// take wrap around into account so vectors increase monotonically
+		for i=1, size-1 {
+			while (td[j].x[i] < td[j].x[i-1]) {
+				td[j].x[i] += tm
+			}
+		}
+		//td[j].mul(ts)
+	}
+	print ts
+	f.close	
+}
+//rd(1)
+
+obfunc combine() { local i localobj x
+	x = new Vector()
+printf("combine size=%d\n", $o1.size)
+	for (i=0; i < $o1.size; i += 2) {
+		x.append($o1.x[i] + $o1.x[i+1])
+	}
+	return x
+}
+
+objref g, g1, g2, yy[7], name[7]
+proc gr() {local i, a, b, n localobj tt, xx, s1
+	g1 = new Graph(0)
+	g1.view(0,0,200,12, 100, 100, 200, 500)
+	//g2 = new Graph()
+	g1.size(0,200,0,15)
+	//g2.size(0,40,0,6e6)
+	g1.label(.3, .9, fname, 2)
+	//g2.label(.5, .9, fname, 2)
+	g = g1
+	// tt is the ticks between beginning of next spike exchange and
+	// end of previous spike exchange. Since the first spike exchange
+	// takes place during finitialize, the ith tt interval is the
+	// interval computation time between the ith and i+1st spike exchange.
+	// Note that the first interval contains some interpreter and other
+	// overhead since it is the time between the return of the finitialize
+	// call to nrn_spike_exchange, and the entry to nrn_spike_exchange
+	// from pc.psolve
+	tt = new Vector()
+	for i=0, td[nd-1].size-2 tt.append(td[0].x[i+1] - td[nd-1].x[i])
+	n = tt.size
+	if (n > 300) {
+		g1.size(0,400,0,6)
+	}else{
+		g1.size(0,200,0,12)
+	}
+	xx = new Vector(n)
+	// compute
+	yy[5] = tt.div(1e6)
+	name[5] = new String("interval compute")
+
+	xx = yy[5].c
+	a=xx.sum*ts*1e6
+	//labl(xx)
+	s1 = xx.c // drawn at end below
+	
+{//  if (n > 300) {
+	// first messager advance
+	yy[0] = td[1].c.sub(td[0]).div(1e6).c(1,n)
+	name[0] = new String("Messager advance")
+	xx = xx.add(yy[0])
+	//labl(xx)
+	//xx.line(g, 3, 1)
+  }
+
+	// barrier
+	yy[1] = td[2].c.sub(td[1]).div(1e6).c(1,n)
+	name[1] = new String("barrier")
+	// conserve (or allgather+allgatherv)
+	yy[2] = td[3].c.sub(td[2]).div(1e6).c(1,n)
+	name[2] = new String("conserve")
+	// incoming spikes saved to buffer (or allgather receive enqueue)
+	yy[3] = td[enq1].c.sub(td[3]).div(1e6).c(1,n)
+	name[3] = new String("spike buffer")
+	if (enqueue == 1) {
+		// buffered incoming spikes enqueued
+		yy[4] = td[enq1+1].c.sub(td[enq1]).div(1e6).c(1,n)
+		name[4] = new String("enqueuing")
+	}else{
+		yy[4] = yy[3].c.fill(0)
+		name[4] = new String("nothing")
+	}
+	// after barrier to after barrier
+	yy[6] = new Vector()
+	for i=0, td[2].size-2 yy[6].append(td[2].x[i+1] - td[2].x[i])
+	yy[6].div(1e6)
+	name[6] = new String("barrier to barrier")
+
+	xx = yy[0].c.fill(0)
+	for case (&i, 5, 0, 1, 2, 3, 4) {
+	//for case (&i, 2, 3, 4, 5, 0, 1) {
+		xx.add(yy[i])
+		labl(xx, i)
+		xx.line(g, i+1, 1)
+	}
+/*		
+	xx = xx.add(yy[1])
+	labl(xx)
+	xx.line(g, 2, 1)
+
+	xx = xx.add(yy[2])
+	labl(xx)
+	xx.line(g, 5, 1)
+
+	xx = xx.add(yy[3])
+	labl(xx)
+	xx.line(g, 6, 1)
+
+	if (enqueue == 1) {
+		xx = xx.add(yy[4])
+		labl(xx)
+		print xx.line(g, 7, 1).sum*ts*1e6
+	}
+*/
+	labl(yy[6], 6)
+	print yy[6].line(g, 8, 1).sum*ts*1e6
+
+	// tt (the interval computation time)
+//	s1.line(g, 1, 1).sum*ts*1e6
+
+//	print "total = ", a+b
+//	g.exec_menu("View = plot")
+}
+
+proc labl() {local x  localobj s
+	s = new String()
+	x = $o1.sum*ts*1e6
+	printf("%3.2fs %s\n", x, name[$2].s)
+	sprint(s.s, "%3.2fs %s", x, name[$2].s)
+	g1.label($o1.size*1.02, $o1.c($o1.size-101, $o1.size-1).mean,s.s,1,1,0,.5,1)
+}
+//gr()
+
+objref list
+list = new List()
+proc again() {
+	list.append(g1) list.append(g2)
+	rd()
+	gr()
+}
+
+proc ag() {
+	list.append(g1) list.append(g2)
+	rd($s1)
+	gr()
+}
+
+/*
+ag("nrn-results/1kconn/results_256_8/t0perf18.1k.8K.dat")
+ag("nrn-results/1kconn/results_256_8/t2perf18.1k.8K.dat")
+ag("nrn-results/1kconn/results_256_8/t6perf18.1k.8K.dat")
+
+ag("nrn-results/1kconn/results_256_16/t0perf18.0.16384.dat")
+ag("nrn-results/1kconn/results_256_16/t2perf18.0.16384.dat")
+ag("nrn-results/1kconn/results_256_16/t6perf18.0.16384.dat")
+
+ag("nrn-results/1kconn/results_256_32/t0perf18.0.32768.dat")
+ag("nrn-results/1kconn/results_256_32/t2perf18.0.32768.dat")
+ag("nrn-results/1kconn/results_256_32/t6perf18.0.32768.dat")
+*/

@@ -1,0 +1,89 @@
+{load_file("invl.hoc")}
+{load_file("extracell.hoc")}
+
+objref nil
+
+proc model_destroy() {
+	//destroy existing model
+	if (pnm.myid == 0) printf("enter model_destroy: UsedMem %ld\n", pc.send_time(10))
+	pc.gid_clear(4) // destroys all input and output PreSyn
+	pnm.nclist.remove_all()
+	pnm.cells.remove_all()
+	xcell_list = new List()
+	if (pnm.myid == 0) printf("leave model_destroy: UsedMem %ld\n", pc.send_time(10))
+}
+
+proc create_cells() { local i, gid  localobj cell, nc
+	for pcitr(&i, &gid) {
+		pnm.set_gid2node(gid, pc.id)
+		pnm.gid_exists(gid)
+		cell = new IF_IntervalFire(ranoffset_ + 1, gid)
+		pnm.cells.append(cell)
+		cell.connect2target(nil, nc)
+		pnm.pc.cell(gid, nc)
+		pnm.pc.outputcell(gid)
+	}
+}
+
+proc set_burst() {local i, gid  localobj cell
+	burstsizepow = $1
+	burstsize = 2^$1
+	burstfactor = $2
+	if ($1 == 0) { burstfactor = 1 }
+	for pcitr(&i, &gid) {
+		cell = pnm.cells.object(i).pp
+		cell.burst_factor = burstfactor
+		cell.burst_start = int(gid/burstsize)*burstdur
+		cell.burst_stop = cell.burst_start + burstdur
+//printf("%d %s %g %g %g\n", gid, cell, cell.burst_factor, cell.burst_start, cell.burst_stop)
+	}
+}
+
+proc connect_cells() { local i, j, gid, r, d, npre, off   localobj cell
+	// random connections but not self
+	d = 1
+	for pcitr(&i, &gid) {
+		cell = pnm.cells.object(i)
+		cell.ranstart(connect_random_low_offset_*ncell)
+		npre = cell.r.discunif(ncon - nconrange/2, ncon + nconrange/2)
+	    if (constyle == 0) {
+		cell.r.discunif(1, ncell-1) // 0 refers to "this"
+		cell.ranstart(connect_random_low_offset_*ncell)
+		for j=0, npre-1 {
+			r = (cell.r.repick + gid)%ncell // can never be gid
+			pnm.nc_append(r, gid, -1, 0, d)
+		}
+	    }else{
+		// gid adjacent connections
+		off = gid - int(npre/2) + ncell
+		for j=0, npre {
+			r = (j + off)%ncell
+			if (r != gid) {
+				pnm.nc_append(r, gid, -1, 0, d)
+			}
+		}
+	    }
+	}
+}
+
+
+proc init_run_random() {local i, gid  localobj cell
+	for pcitr(&i, &gid) {
+		cell = pnm.cells.object(i)
+		cell.r.uniform(mininvl,maxinvl) //interval variation
+		cell.ranstart($1*ncell)
+	}
+}
+
+proc mknet() {
+	model_destroy()
+	objref gidvec
+	if (giddist == 2) {
+		gidvec = mk_randist(ncell, pc.nhost, pc.id)
+	}
+	create_cells()
+	connect_cells()
+	if (n_xcell) {
+		mk_extra_cells(n_xcell)
+	}
+}

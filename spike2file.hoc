@@ -1,0 +1,95 @@
+// assume loaded after pc, pnm exist
+
+proc sortspikes() {local res, i, j, k, imin, x  localobj srt, s, cnts, d1, d2, gs
+	s = pnm.spikevec
+	// for testing, round to the file output resolution
+	res = .001
+	pnm.spikevec.div(res).add(.5).floor().mul(res)
+	spike_count = pc.allreduce(s.size, 1)
+	if (pc.id == 0) {printf("spike_count %d\n", spike_count)}
+
+	// not always sorted even on per processor basis
+	srt = s.sortindex
+	s.index(s, srt)
+	pnm.idvec.index(pnm.idvec, srt)
+	if (pc.nhost == 1) {
+		$o1.copy(pnm.spikevec)
+		$o2.copy(pnm.idvec)
+		return
+	}
+
+	// exchange
+	tvl = (tstop+1)/pc.nhost
+	cnts = new Vector(pc.nhost)
+	j = 0
+	for i=0, pc.nhost-1 {
+		x = (i+1)*tvl
+		k = 0
+		while (j < s.size) {
+			if (s.x[j] < x) {
+				j += 1
+				k += 1
+			}else{
+				break
+			}
+		}
+		cnts.x[i] = k
+	}
+	d1 = $o1
+	d2 = $o2
+	pc.alltoall(s, cnts, d1)
+	pc.alltoall(pnm.idvec, cnts, d2)
+
+	if (d1.size == 0) { return }
+	srt = d1.sortindex
+	d1.index(d1, srt)
+	d2.index(d2, srt)
+	// now sort the gids without destroying the spiketime sort
+	gs = new Vector()
+	imin = 0
+	n = d1.size
+	for i=1, n {
+		if (i < n) if (d1.x[imin] == d1.x[i]) {
+			continue
+		}
+		if (i - imin > 1) {
+			gs.resize(0)
+			gs.copy(d2, imin, i-1)
+			gs.sort
+			d2.copy(gs, imin, 0, gs.size-1)
+		}
+		imin = i
+	}
+	pc.barrier()
+}
+
+proc spike2file() { local i, j, nf, me   localobj outf, s, vs, vg
+	ts = startsw()
+	vs = new Vector()
+	vg = new Vector()
+	sortspikes(vs, vg)
+	if (pc.id == 0) printf("sortspikes %g\n", startsw() - ts)
+	ts = startsw()
+	s = new String()
+	nf = 128 // numer of contiguous processes that write to one file
+	me = pc.id%nf // my id relative to the nf group
+	sprint(s.s, "spk%03d.dat", int(pc.id/nf))
+	outf = new File()
+	for j=0, nf {
+		if (j == me){
+			if (j== 0) {
+				outf.wopen(s.s)
+				outf.close()
+			}
+			outf.aopen(s.s)
+			for i=0, vs.size-1  {
+				outf.printf("%.3f %d\n", vs.x[i], vg.x[i])
+			}
+			outf.close
+		}
+		pc.barrier
+	}
+	if (pc.id == 0) printf("spike2file %g\n", startsw() - ts)
+}
+
+

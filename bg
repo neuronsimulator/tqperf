@@ -1,0 +1,27 @@
+bg() {
+	echo "bg $1 $2 $3 $4 $5 $6 $7"
+	sed "
+s/^ncell = 10000$/ncell = 2^$2/
+s/^ncon = 100$/ncon = $3/
+s/^spikemode(0,0)$/spikemode($4,$5)/
+" < init.hoc > init_.hoc
+#/^want_all_spikes/d
+#/^pnm.gatherspikes/d
+#/^spike2file/d
+
+rm -f out.dat
+bgrun $7 $6 $1 init_.hoc
+mv temp.$1 stdout$1.$2.$3.$4.$5
+if test -f out.dat ; then
+  sort -k 1n,1n -k 2n,2n out.dat > out$1.$2.$3.$4.$5
+fi
+}
+
+if test "$1" != "" ; then
+	bg $1 $2 $3 $4 $5 $6 $7
+else
+	bg 128 16 1000 0 0 R1002
+	bg 256 16 1000 0 0 R1002 VN
+	bg 128 16 1000 20 1 R1002
+	bg 256 16 1000 20 1 R1002 VN
+fi

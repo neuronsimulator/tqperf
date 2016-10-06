@@ -1,0 +1,19 @@
+
+done = 0
+{load_file("init.hoc")}
+
+// weak scaling
+if (1) {
+	seq = 0
+	ncellpow = log(256*pc.nhost)/log(2)
+	mkmodel(ncellpow, 1000)
+	use2interval=1 use2phase = 1 doseries(3)
+	use2interval=0 use2phase = 0 doseries(4)
+
+	ncellpow = log(32*pc.nhost)/log(2)
+	mkmodel(ncellpow, 10000)
+	use2interval=1 use2phase = 1 doseries(3)
+	use2interval=0 use2phase = 0 doseries(4)
+}
+
+finish()

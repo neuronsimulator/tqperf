@@ -1,0 +1,12 @@
+#!/bin/bash
+#change intrepidjob.sh so np is correct
+
+n=64
+n=16384
+
+q=prod-devel
+if test $n -gt 512 ; then
+  q=prod
+fi
+
+qsub -M michael.hines@yale.edu -q $q -n $n -t 60 --mode script intrepidjob.sh

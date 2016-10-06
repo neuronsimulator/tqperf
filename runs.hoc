@@ -1,0 +1,147 @@
+// can do use2phase 0, 1 for method 2,3
+// can do use2interval 1, 2 for method 2,3,4
+// enough n_xcell to make method 4 entirely overlapping
+// enough compress_bufsize so method 1 only allgather.
+// strong scaling with 256 cells on 8K ncon = 1000
+// weak scaling with 256 on all processor numbers ncon=1000
+// strong with 64 on 8k ncon = 10000
+// weak scaling with 64 on all processor numbers ncon=10000
+
+done = 0
+{load_file("init.hoc")}
+
+// weak scaling
+if (runs == 1) {
+	seq = 0
+	ncellpow = log(256*pc.nhost)/log(2)
+	mkmodel(ncellpow, 1000)
+	{use2phase = 0 doseries(1234)}
+	{use2phase = 1 doseries(23)}
+}
+if (runs == 2) {
+	seq = 6
+	ncellpow = log(32*pc.nhost)/log(2)
+	mkmodel(ncellpow, 10000)
+	{use2phase = 0 doseries(1234)}
+	{use2phase = 1 doseries(23)}
+}
+// strong scaling
+if (runs == 3) {
+    if (pc.nhost > 9000) {
+	seq = 12
+	ncellpow = log(256*8192)/log(2)
+	mkmodel(ncellpow, 1000)
+	{use2phase = 0 doseries(1234)}
+	{use2phase = 1 doseries(23)}
+    }
+}
+if (runs == 4) {
+    if (pc.nhost > 9000) {
+	seq = 18
+	ncellpow = log(32*8192)/log(2)
+	mkmodel(ncellpow, 10000)
+	{use2phase = 0 doseries(1234)}
+	{use2phase = 1 doseries(23)}
+    }
+}
+
+// special cases
+if (runs == 5) {
+	seq = 24
+	ncellpow = log(256*pc.nhost)/log(2)
+	mkmodel(ncellpow, 1000)
+	use2interval=0
+	  use2phase=0 doseries(4)
+	  use2phase=1 doseries(3)
+	use2interval=-1
+	mk_extra_cells(50) use2phase=0 doseries(4)
+	mk_extra_cells(0)
+	compress_bufsize=20 doseries(1)
+	compress_bufsize=40 doseries(1)
+
+	ncellpow = log(32*pc.nhost)/log(2)
+	mkmodel(ncellpow, 10000)
+	use2phase=1 n_dat=8 doseries(3)
+}
+
+// look at effect of bursting,  gid distribution, and connection pattern
+if (runs == 6) {
+	if (use2interval == -1) use2interval=0
+	ncellpow = log(256*pc.nhost)/log(2)
+	for giddist=0, 1 {
+		for constyle=0, 1 {
+			mkmodel(ncellpow, 1000)
+			set_burst(0, 1)
+			doseries(series)
+			another()
+			set_burst(ncellpow - 3, .2)
+			another()
+						
+		}
+	}
+}
+
+if (runs == 7) {
+	nseq=9
+	use2interval=0
+	ncellpow = log(256*pc.nhost)/log(2)
+	for giddist=1, 1 {
+		for constyle=1, 1 {
+			mkmodel(ncellpow, 1000)
+			set_burst(0, 1)
+			doseries(series)
+			another()
+			set_burst(ncellpow - 3, .2)
+			another()
+						
+		}
+	}
+	use2interval=1
+	for giddist=1, 1 {
+		for constyle=0, 1 {
+			mkmodel(ncellpow, 1000)
+			set_burst(0, 1)
+			doseries(series)
+			another()
+			set_burst(ncellpow - 3, .2)
+			another()
+						
+		}
+	}
+}
+
+// left overs to complete table
+if (runs == 64) { // for 64K cores
+	seq = 60
+	ncellpow = log(256*8192)/log(2)	mkmodel(ncellpow, 1000)
+	use2phase = 1 doseries(2)
+	use2phase = 0  use2interval=0 doseries(4)
+	ncellpow = log(32*8192)/log(2)	mkmodel(ncellpow, 10000)
+	doseries(4)
+}
+if (runs == 32) { // for 32K cores
+	seq = 60
+	use2phase = 0  use2interval=0
+	ncellpow = log(256*8192)/log(2)	mkmodel(ncellpow, 1000) doseries(4)
+	ncellpow = log(32*8192)/log(2)	mkmodel(ncellpow, 10000) doseries(4)
+	ncellpow = log(256*pc.nhost)/log(2) mkmodel(ncellpow, 1000) doseries(4)
+	ncellpow = log(32*pc.nhost)/log(2) mkmodel(ncellpow, 10000) doseries(4)
+}	
+
+if (runs == 16) { // for 16K cores
+	seq = 60
+	use2phase = 0  use2interval=0
+	ncellpow = log(32*8192)/log(2)	mkmodel(ncellpow, 10000) doseries(4)
+	ncellpow = log(256*pc.nhost)/log(2) mkmodel(ncellpow, 1000) doseries(4)
+	ncellpow = log(32*pc.nhost)/log(2) mkmodel(ncellpow, 10000) doseries(4)
+	ncellpow = log(256*8192)/log(2)	mkmodel(ncellpow, 1000) doseries(3)
+}	
+
+if (runs == 8) { // for 8K cores
+	seq = 60
+	use2phase = 0  use2interval=0
+	ncellpow = log(32*8192)/log(2)	mkmodel(ncellpow, 10000) doseries(4)
+	ncellpow = log(256*pc.nhost)/log(2) mkmodel(ncellpow, 1000) doseries(4)
+}	
+
+finish()

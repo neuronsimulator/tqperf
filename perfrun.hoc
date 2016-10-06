@@ -1,0 +1,334 @@
+proc want_all_spikes() { local i, gid
+	for pcitr(&i, &gid) {
+		pnm.spike_record(gid)
+	}
+}
+
+objref mxhist_
+proc mkhist() {
+	if (pnm.myid == 0) {
+		mxhist_ = new Vector($1)
+		pc.max_histogram(mxhist_)
+	}
+}
+proc prhist() {local i, j
+	if (pnm.myid == 0 && object_id(mxhist_)) {
+		printf("histogram of #spikes vs #exchanges\n")
+		j = 0
+		for i=0, mxhist_.size-1 {
+			if (mxhist_.x[i] != 0) { j = i }
+		}
+		for i = 0, j {
+			printf("%d\t %d\n", i, mxhist_.x[i])
+		}
+		printf("end of histogram\n")
+	}
+}
+
+objref tdat_
+tdat_ = new Vector(6)
+proc prun() {local x, y, i
+	set_maxstep_time = startsw()
+	pnm.pc.set_maxstep(10)
+	set_maxstep_time = startsw() - set_maxstep_time
+	prun1()
+}
+
+proc prun1() {local x, y, i
+	runtime=startsw()
+	tdat_.x[0] = pnm.pc.wait_time
+	if (pc.id == 0) { printf("Before stdinit FreeMem %ld\n", pc.send_time(11))}
+	stdinit()
+	x = startsw()
+	stdinit_time = x - runtime
+	if (pnm.pc.id == 0) printf("stdinit %g\n", x - runtime)
+	pnm.psolve(tstop)
+	y = startsw()
+	tdat_.x[0] = pnm.pc.wait_time - tdat_.x[0]
+	if (pnm.pc.id == 0) printf("psolve %g\n", y - x)
+	runtime = y - runtime
+	tdat_.x[1] = pnm.pc.step_time
+	tdat_.x[2] = pnm.pc.send_time	
+	tdat_.x[3] = pnm.pc.send_time(2)
+	tdat_.x[4] = pnm.pc.send_time(3)
+	tdat_.x[5] = pnm.pc.send_time(4)
+	if (pnm.pc.id == 0) {
+		printf("max_chain_length=%.20g  nclash=%.20g  nfind=%.20g\n", pnm.pc.send_time(5), pnm.pc.send_time(6), pnm.pc.send_time(7))
+	}
+//	printf("%d wtime %g\n", pnm.myid, waittime)
+}
+
+proc p_tperf() {local method_info, tt \
+  localobj s, f, ncon_s, nhost_s, chist, tperf
+	// factored out from prun so tperf can be called last
+	chist = new Vector(20)
+	tperf = new Vector()
+	pnm.pc.send_time(4, chist, tperf)
+	if (pnm.pc.id == 0) {
+		printf("extra conservation checks\n")
+		for i=0, chist.size-1 {
+			//printf("%d %d\n", i, chist.x[i])
+		}
+	}
+	// end of factor out
+	method_info = pnm.pc.send_time(8)
+	ncon_s = new String()
+	if (ncon >= 1000) {
+		sprint(ncon_s.s, "%dk", ncon/1000)
+	}else{
+		sprint(ncon_s.s, "%d", ncon)
+	}
+	nhost_s = new String()
+	if (pnm.pc.nhost >= 1024) {
+		sprint(nhost_s.s, "%dK", pnm.pc.nhost/1024)
+	}else{
+		sprint(nhost_s.s, "%d", pnm.pc.nhost)
+	}
+	s = new String()
+	sprint(s.s, "t%dperf%d.%s.%s.%d.%s.%d.%d", bgpdma, ncellpow, ncon_s.s, nhost_s.s,method_info,nrnversion(5), seq, pc.id)
+	if ((pnm.pc.id % (pc.nhost/n_dat)) == 0) {
+		f = new File()
+		f.wopen(s.s)
+		print_param(f)
+		f.printf("%d\n", tperf.size)
+		tperf.printf(f, "%.15g\n")
+	}
+	seq += 1
+	tt = startsw()
+	max_avg_per_interval(f, tperf, method_info)
+	if (pnm.pc.id == 0) {
+		printf("max_avg_per_interval time %g\n", startsw() - tt)
+		printf("%s\n", s.s)
+	}
+	if (object_id(f)) {f.close()}
+}
+
+proc max_avg_per_interval() {local n, nd, enq, x, tm, i, j, rank \
+    localobj f, td, v1, v2, vv
+	f = $o1
+	td = $o2
+	rank = pnm.pc.id
+	if (bgpdma == 0 || td.size == 0) {
+		if (object_id(f)) f.printf("0\n")
+		return
+	}
+	// all this depends on specific TBUF ordering in bgpdma.cpp
+	enq = int($3/32)
+	nd = 10 + enq + 2*use2phase
+	// how many vectors printed
+	if (object_id(f)) {
+		if (rank == 0) f.printf("10\n") else f.printf("0\n")
+	}
+	v1 = new Vector()
+	v2 = new Vector()
+	//after conserve is 3, before barrier is 1
+	v1.copy(td, 0, 3, -1, 1, nd) // note v1.size == v2.size+1
+	v2.copy(td, 0, 1+nd, -1, 1, nd)
+	// start at 0
+	x = v1.x[0]
+	v1.sub(x)
+	v2.sub(x)
+	// ticks can wrap around about every 5 seconds so force monotonic
+	tm = 2^32
+	while (v2.x[0] < 0) { v2.x[0] += tm } // unlikely
+	for i = 1, v1.size-1 while (v1.x[i] < v1.x[i-1]) v1.x[i] += tm
+	for i = 1, v2.size-1 while (v2.x[i] < v2.x[i-1]) v2.x[i] += tm
+	// now the interval sizes
+	v2.sub(v1.c(0, v1.size-2))
+	v1.deriv(1,1)
+	// save sum, max to file
+	for j=1,2 { vv = vvreduce(v1, j) if (pc.id == 0) {
+		f.printf("%d\n", vv.size)
+		vv.printf(f, "%.15g\n")
+	}}
+	for j=1,2 { vv = vvreduce(v2, j) if (pc.id == 0) {
+		f.printf("%d\n", vv.size)
+		vv.printf(f, "%.15g\n")
+	}}
+	// nsent_cells 5; spikes sent 6; spikes received 7
+	// note this is independent of method
+	for case (&i, 5, 6, 7) {
+		v1.copy(td, 0, i, -1, 1, nd)
+		for j=1,2 {
+			vv = vvreduce(v1, j)
+			if (pc.id == 0) {
+				f.printf("%d\n", vv.size)
+				vv.printf(f, "%.15g\n") // sum then max
+			}
+		}
+	}
+}
+
+obfunc vvreduce() {local i  localobj vr
+	vr = new Vector($o1.size)
+	for i=0, $o1.size -1 {
+		vr.x[i] = pnm.pc.allreduce($o1.x[i], $2)
+	}
+	return vr
+}
+
+proc poststat() {
+	pnm.pc.post("poststat", pnm.myid, tdat_)
+}
+
+objref spstat_
+proc postspstat() {
+	spstat_ = new Vector()
+	cvode.spike_stat(spstat_)
+	pnm.pc.post("postspstat", pnm.myid, spstat_)
+}
+
+objref tavg_stat, tmin_stat, tmax_stat, idmin_stat, idmax_stat
+
+proc getstat() {local i, j, id localobj tdat
+	tdat = tdat_.c	tavg_stat = tdat_.c  tmin_stat = tdat_.c  tmax_stat = tdat_.c
+	idmin_stat = tdat_.c.fill(0)  idmax_stat = tdat_.c.fill(0)
+	if (pnm.nwork > 1) {
+		pnm.pc.context("poststat()\n")
+		for i=0, pnm.nwork-2 {
+			pnm.pc.take("poststat", &id, tdat)
+			tavg_stat.add(tdat)
+			for j = 0, tdat_.size-1 {
+				if (tdat.x[j] > tmax_stat.x[j]) {
+					idmax_stat.x[j] = id
+					tmax_stat.x[j] = tdat.x[j]
+				}
+				if (tdat.x[j] < tmin_stat.x[j]) {
+					idmin_stat.x[j] = id
+					tmin_stat.x[j] = tdat.x[j]
+				}
+			}
+		}
+	}
+	tavg_stat.div(pnm.nhost)
+}
+
+proc print_spike_stat_info() {local i, j, id  localobj spstat, sum, min, max, idmin, idmax, label
+	spstat = new Vector()
+	spstat_ = new Vector()
+	cvode.spike_stat(spstat_)
+	sum = spstat_.c
+	min = spstat_.c
+	max = spstat_.c
+	idmin = spstat_.c.fill(0)
+	idmax = spstat_.c.fill(0)
+	if (pnm.nwork > 1) {
+		pnm.pc.context("postspstat()\n")
+		for i=0, pnm.nwork-2 {
+			pnm.pc.take("postspstat", &id, spstat)
+			sum.add(spstat)
+			for j=0, spstat.size-1 {
+				if (spstat.x[j] > max.x[j]) {
+					idmax.x[j] = id
+					max.x[j] = spstat.x[j]
+				}
+				if (spstat.x[j] < min.x[j]) {
+					idmin.x[j] = id
+					min.x[j] = spstat.x[j]
+				}
+			}
+		}
+	}
+	label = new List()
+	label.append(new String("eqn"))
+	label.append(new String("NetCon"))
+	label.append(new String("deliver"))
+	label.append(new String("NC deliv"))
+	label.append(new String("PS send"))
+	label.append(new String("S deliv"))
+	label.append(new String("S send"))
+	label.append(new String("S move"))
+	label.append(new String("Q insert"))
+	label.append(new String("Q move"))
+	label.append(new String("Q remove"))
+	// following two may or may not exist
+	label.append(new String("Q enq1"))
+	label.append(new String("Q enq2"))
+	printf("%10s %12s %10s %10s    %5s   %5s\n",\
+		"", "total", "min", "max", "idmin", "idmax")
+	for i=0, spstat_.size-1 {
+		printf("%-10s %12.0lf %10d %10d    %5d   %5d\n",\
+label.object(i).s, sum.x[i], min.x[i], max.x[i], idmin.x[i], idmax.x[i])
+	}
+}
+
+proc perf2file() { local i  localobj perf
+	perf = new File()
+	perf.aopen("perf.dat")
+	perf.printf("%d %d %d %d %d %d    %g %g     ",pnm.nhost, pnm.ncell, ncon,\
+		compress_bufsize, selfqueue, bgpdma, setuptime, runtime)
+	for i=0, tdat_.size-1 { perf.printf(" %g", tavg_stat.x[i]) }
+	perf.printf("     ")
+	for i=0, tdat_.size-1 { perf.printf(" %d %g ", idmin_stat.x[i], tmin_stat.x[i]) }
+	perf.printf("     ")
+	for i=0, tdat_.size-1 { perf.printf(" %d %g ", idmax_stat.x[i], tmax_stat.x[i]) }
+	perf.printf("\n")
+
+	perf.close
+}
+
+proc print_total_spikes() {local i, gid, nin, nout  localobj cell
+	nin = nout = 0
+	for pcitr(&i, &gid) {
+		cell = pc.gid2cell(gid)
+		nin += cell.ninput
+		nout += cell.noutput
+	}
+	nin = pc.allreduce(nin, 1)
+	nout = pc.allreduce(nout, 1)
+	if (pc.id == 0) {
+		printf("Total spikes in = %ld  out = %ld\n", nin, nout)
+	}
+}
+/*
+proc print_spike_counts() {local i, gid  localobj f, cell
+	f = new File()
+	if (pnm.pc.id == 0) f.wopen($s1)
+	f.close
+	for pnm.serialize() {
+		f.aopen($s1)
+		for pcitr(&i, &gid) {
+			cell = pnm.cells.object(i)
+			f.printf("%d %d %d\n", gid, cell.pp.ninput, cell.pp.noutput)
+		}
+		f.close
+	}
+}
+*/
+
+proc spkcntinfo() {local i, gid, n localobj cell
+	n = pnm.cells.count
+	$o1 = new Vector(n)
+	$o2 = new Vector(n)
+	$o3 = new Vector(n)
+	for pcitr(&i, &gid) {
+		cell = pnm.cells.object(i)
+		$o1.x[i] = gid
+		$o2.x[i] = cell.pp.ninput
+		$o3.x[i] = cell.pp.noutput
+	}
+}
+proc postspkcnt() {localobj gid, in, out
+	spkcntinfo(gid, in, out)
+	pc.post("postspkcnt", gid, in, out)
+}
+proc psc1() {local i
+	for i=0, $o2.size-1 {
+		$o1.printf("%d %d %d\n", $o2.x[i], $o3.x[i], $o4.x[i])
+	}
+}
+proc print_spike_counts() {local i, tt  localobj f, gid, in, out
+	tt = startsw()
+	f = new File()
+	f.wopen($s1)
+	pc.context("postspkcnt()\n")
+	spkcntinfo(gid, in, out)
+	psc1(f, gid, in, out)
+	for i=0, pc.nhost - 2 {
+		pc.take("postspkcnt", gid, in, out)
+		psc1(f, gid, in, out)
+	}
+	tt = startsw() - tt
+	printf("print_spike_counts %g\n", tt)
+}
+

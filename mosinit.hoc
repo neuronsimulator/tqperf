@@ -1,0 +1,52 @@
+{load_file("nrngui.hoc")}
+
+proc close() {
+	PWManager[0].close(1)
+}
+
+proc raster() {
+	tstop=200
+	done = 0
+	spkfile = 1
+	ncellpow =8
+	ncon = 100
+	if ($1 == 9) {
+		burstsizepow = 5
+	}
+	load_file("init.hoc")
+	mkmodel(ncellpow, ncon)
+	doseries(1)
+	load_file("spkplt.hoc")
+	close()
+}
+
+proc perf() {
+	load_file("tperfnew.hoc")
+	if ($1 == 4) {
+		table()
+		load_file("table.hoc")
+	}
+	if ($1 == 5) {
+		ag("dat/t0perf21.1k.8K.80.547+.3.0")
+		ag("dat/t0perf21.1k.8K.80.548+.0.0")
+		ag("dat/t0perf21.1k.8K.80.549.10.0")
+	}
+	if ($1 == 6) perf_t2_1k()
+	if ($1 == 7) perf_t2_10k()
+	if ($1 == 8) perf_t3()
+}
+
+proc mkpanel() {
+	xpanel("Figures")
+	xbutton("Fig 3", "raster(3)")
+	xbutton("Fig 4", "perf(4)")
+	xbutton("Fig 5", "perf(5)")
+	xbutton("Fig 6", "perf(6)")
+	xbutton("Fig 7", "perf(7)")
+	xbutton("Fig 8", "perf(8)")
+	xbutton("Fig 9", "raster(9)")
+	xpanel(200,200)
+}
+
+mkpanel()
+

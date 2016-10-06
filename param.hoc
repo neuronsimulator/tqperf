@@ -1,0 +1,82 @@
+{load_file("stdlib.hoc")}
+objref parmlist
+parmlist = new List()
+proc default_param() {localobj s
+	s = new String()
+	if (!name_declared($s1)) {
+		sprint(s.s, "%s = %g", $s1, $2)
+		execute(s.s)
+	}
+	s.s = $s1
+	parmlist.append(s)
+}
+
+proc print_param() {local i, x localobj s, pc
+	pc = new ParallelContext()
+	s = new String()
+	if (numarg() == 1) {
+		$o1.printf("%s\n", nrnversion())
+		$o1.printf("%s\n", nrnversion(6))
+		$o1.printf("%s\n", nrnversion(7))
+		$o1.printf("methodinfo %g\n", pc.send_time(8))
+		$o1.printf("nhost %d\n", pc.nhost())
+		$o1.printf("MemSize %ld\n", pc.send_time(9))
+		$o1.printf("UsedMem %ld\n", pc.send_time(10))
+		$o1.printf("FreeMem %ld\n", pc.send_time(11))
+	}
+	for i = 0, parmlist.count-1 {
+		sprint(s.s, "hoc_ac_ = %s", parmlist.o(i).s)
+		execute(s.s)
+		x = hoc_ac_
+		if (numarg() == 1) {
+			$o1.printf("%s = %g\n", parmlist.o(i).s, x)
+		}else{
+			printf("%s  = %g\n", parmlist.o(i).s, x)
+		}
+	}
+	if (numarg() == 1) {
+		$o1.printf("@@@end header@@@\n")
+	}
+}
+
+default_param("use2interval", -1) // 0 for allgather, 1 for multisend
+default_param("ncellpow", 8)
+default_param("ncon", 1000)
+default_param("nconrange", 100)
+default_param("mininvl", 20)
+default_param("maxinvl", 40)
+default_param("ranoffset_", 1)
+default_param("connect_random_low_offset_", 1)
+default_param("run_random_low_offset_", 2)
+default_param("n_xcell", 0)
+default_param("use2phase", 0)
+
+default_param("burstfactor", 0.2)
+default_param("burstdur", 50)
+default_param("burstsizepow", 0)
+default_param("burstsize", 1)
+default_param("giddist", 0)
+default_param("constyle", 0)
+
+default_param("bgpdma", 0)
+default_param("compress_bufsize", 10)
+default_param("series", 1)
+default_param("binqueue", 1) // set by spikemode
+default_param("selfqueue", 1) // se by spikemode arg
+
+default_param("tstop", 200)
+default_param("spkfile", 0)
+default_param("done", 1) // 1 means quit at end of init.hoc. if 0 be sure
+	// to call finish() explicitly
+
+default_param("setuptime", 0)
+default_param("mkmodel_time", 0)
+default_param("setup_method_time", 0)
+default_param("set_maxstep_time", 0)
+default_param("stdinit_time", 0)
+default_param("runtime", 0)
+default_param("methodrun_time", 0)
+default_param("elapsed_time", 0)
+default_param("jobid", 0)
+default_param("n_dat", 1)
+default_param("seq", 0)

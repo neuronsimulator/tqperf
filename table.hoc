@@ -1,0 +1,158 @@
+objref m
+
+ncell = 0
+ncon = 1
+nhost = 2
+meth = 3
+invl = 4
+phase = 5
+comp = 6
+total = 7
+set_maxstep = 8
+
+proc rd() {local i localobj f
+	f = new File()
+	m = new Matrix()
+	f.ropen("table.dat")
+	m.scanf(f)
+//	m.printf(" %4.2f")
+	f.close()
+	m.setcol(ncon, m.getcol(ncon).div(1000))
+	m.setcol(nhost, m.getcol(nhost).div(1024))
+	m.setcol(ncell, m.getcol(ncell).div(1024*1024))
+}
+rd()
+
+obfunc get() {local i, arg, val, k  localobj r, si, mr, m
+	m = $o1
+	si = new Vector(m.nrow)
+	si.indgen
+	for i=2, numarg() {
+		arg = $i
+		i += 1
+		val = $i
+//print i, arg, val
+		r = m.getcol(arg).index(m.getcol(arg),si).indvwhere("==", val)
+//print "r.size ", r.size
+//r.printf
+		si.index(si, r)
+	}
+//print "si.size ", si.size
+//si.printf
+	k = si.size
+	if (k == 0) k = 1
+	mr = new Matrix(k, m.ncol())
+	for i=0, si.size-1 {
+		mr.setrow(i, m.getrow(si.x[i]))
+	}
+	return mr
+}
+
+//get1(m, nhost,64, ncon,1).printf
+
+proc append() { localobj vv, m2
+	vv = $o1  m2 = $o2
+	if (m2.nrow == 0) { m2 = new Matrix(1,20) }
+	vv.append(m2.x[0][comp])
+	vv.append(m2.x[0][total])
+	vv.append(m2.x[0][set_maxstep])
+}
+
+obfunc line() {localobj mr, m2, vv
+	vv = new Vector()
+	mr = get(m, nhost, $1, ncell, $2, ncon, $3)
+//	mr.printf()
+	vv.append(mr.x[0][nhost])
+	vv.append(mr.x[0][ncell])
+	vv.append(mr.x[0][ncon])
+	m2 = get(mr, meth, 0) append(vv, m2)
+	m2 = get(mr, meth, 1, invl, 2, phase, 1) append(vv, m2)
+	m2 = get(mr, meth, 2, invl, 2, phase, 1) append(vv, m2)
+	m2 = get(mr, meth, 3, invl, 1, phase, 0) append(vv, m2)
+
+//	m2 = get(mr, meth, 3, invl, 2, phase, 0) append(vv, m2)
+
+//	m2 = get(mr, meth, 2, invl, 1, phase, 1) append(vv, m2)
+//	m2 = get(mr, meth, 2, invl, 1, phase, 0) append(vv, m2)
+//	m2 = get(mr, meth, 2, invl, 2, phase, 0) append(vv, m2)
+	return vv
+}
+
+obfunc tab() {local i, j, k, kk, nc  localobj m, vv, s, sf
+	sf = new StringFunctions()
+	m = new Matrix(4, line(8,$1,$2).size)
+	j = 0
+	for case(&i, 8, 16, 32, 64) {
+		if ($2 == 0 && $1 == 1) { nc = 2 }
+		if ($2 == 0 && $1 == 10) { nc = .25 }
+		if ($2 == 1 && $1 == 1) { nc = 2*i/8 }
+		if ($2 == 1 && $1 == 10) { nc = .25*i/8 }
+		vv = line(i, nc, $1)
+		m.setrow(j, vv)
+		printf("%2dK", vv.x[0])
+		if (vv.x[1] < 1) {
+			printf(" & 1/%dM", 1/vv.x[1])
+		}else{
+			printf(" & %3dM", vv.x[1])
+		}
+		printf(" & %2dk", vv.x[2])
+		s = new String()
+		for k=3, vv.size-1 {
+			sprint(s.s, "%.3g", vv.x[k])
+			for kk=sf.len(s.s), 3 {
+				if (sf.substr(s.s, ".") == -1) {
+					sprint(s.s, "%s.", s.s)
+				}else{
+					sprint(s.s, "%s0", s.s)
+				}
+			}
+			if (vv.x[k] == 0) { s.s = " ---" }
+			printf(" & %s", s.s)
+		}
+		printf(" \\\\\n")
+		j += 1
+	}
+	//m.printf(" %4.2f")
+	return m
+}
+
+objref glist
+glist = new List()
+objref mark
+mark = new List()
+mark.append(new String("T"))
+mark.append(new String("t"))
+mark.append(new String("O"))
+mark.append(new String("o"))
+
+proc pline() {
+	$o2.mark($o6, $o1, $s5, 10, $3, $4)
+	$o2.line($o6, $o1, $3, $4)
+}
+proc grph() {local i, j, n  localobj x, y, g
+	g = new Graph()  glist.append(g)
+	g.size(0, 5, 0, 30)
+	if ($2) {
+		g.size(0, 5, 0, 5)
+		g.beginline(1, 6)
+		g.line(1,4) g.line(4,1) g.flush()
+	}
+    for j = 1, 4 {
+	n = j*2 + 2 + j - 1
+	x = $o1.getcol(0)
+	y = $o1.getcol(n)
+	x.div(4).log.div(log(2))
+	if ($2) {
+		y.log.div(log(2))
+	}
+	pline(x, y, 1, 1, mark.o(j-1).s, g)
+   }
+}
+
+
+objref mm
+grph(tab(1, 0), 1)
+grph(tab(10, 0), 1)
+grph(tab(1, 1), 0)
+grph(tab(10, 1), 0)
+

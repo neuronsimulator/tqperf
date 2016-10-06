@@ -1,0 +1,59 @@
+#!/bin/bash
+
+#first arg is number of K processes except 256 and 512 are that number
+#optional arg2-3 are before and after the init.hoc respectively
+# and should be of form "-c parameter=value ..." (see param.hoc)
+#to change time from 20, set the minutes=value environment variable
+# eg minutes=30  ./intrepidrun 16 '-c ncellpow=20 -c ncon=10000 -c series=4321'
+
+WORKDIR=`pwd`
+
+if test $minutes = "" ; then
+  minutes=20
+fi
+
+if test $# -gt 0 ; then
+  npk=$1 #K processes
+  shift
+else
+  npk=512
+fi
+
+np=$(($npk * 1024))
+if test $npk -ge 256 ; then
+  np=$npk
+fi
+nnode=$(($np / 4))
+q=prod-devel
+if test $nnode -gt 512 ; then
+  q=prod
+fi
+
+before=""
+after=""
+if test $# -gt 0 ; then
+  before="$1"
+  shift
+fi
+if test $# -gt 0 ; then
+  after="$1"
+  shift
+fi
+
+echo $npk proccount=$np nnode=$nnode
+echo time=$minutes
+echo queue=$q
+echo $before
+echo $after
+
+#exit 0
+
+#env='BG_COREDUMP_PATH=/intrepid-fs0/users/hines/scratch/cores'
+env='BG_COREDUMPDISABLED=1'
+
+qsub -q $q -t $minutes -n $nnode --proccount $np --mode vn \
+ -M michael.hines@yale.edu \
+ --env $env \
+ --cwd $WORKDIR \
+ $WORKDIR/powerpc64/special \
+ -mpi $before -c done=0 init.hoc $after -c 'finish()'

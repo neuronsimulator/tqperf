@@ -1,0 +1,187 @@
+begintime = startsw()
+setuptime = begintime
+{load_file("param.hoc")}
+_tstop = tstop
+{load_file("nrngui.hoc")}
+tstop = _tstop
+
+{load_file("netparmpi.hoc")}
+objref pnm, pc
+
+ncell = 2^ncellpow
+
+objref pattern_stim, pattern_time, pattern_gid
+proc pattern() {
+	clipboard_retrieve($s1)
+	pattern_time = hoc_obj_[1]
+	pattern_gid = hoc_obj_
+printf("pattern %d\n", pattern_time.size)
+	pattern_stim = new PatternStim()
+	pattern_stim.play(pattern_time, pattern_gid)
+}
+pnm = new ParallelNetManager(ncell)
+pc = pnm.pc
+{pc.timeout(1)}
+fake_nhost = 0
+fake_id = 0
+if (fake_nhost) {
+	pnm.nhost = fake_nhost
+	pnm.myid = fake_id
+	pattern("out.64k.spk")
+}
+
+objref gidvec
+{load_file("randist.hoc")}
+iterator pcitr() {local i1, i2, x
+    if (giddist == 0) { // round robin (card dealing)
+	i1 = 0
+	for (i2=pnm.myid; i2 < ncell; i2 += pnm.nhost) {
+		$&1 = i1
+		$&2 = i2
+		iterator_statement
+		i1 += 1
+	}
+    }else if (giddist == 1){ // contiguous
+	x = pnm.myid*(ncell/pnm.nhost)
+	for i1 = 0, ncell/pnm.nhost-1 {
+		i2 = i1 + x
+		$&1 = i1
+		$&2 = i2
+		iterator_statement
+	}
+    }else{ //acording to gidvec
+	for i1 = 0, gidvec.size-1 {
+		$&1 = i1
+		$&2 = gidvec.x[i1]
+		iterator_statement
+	}
+    }
+}
+
+{load_file("perfrun.hoc")}
+{load_file("spike2file.hoc")}
+
+proc spikemode() {local u2i, cbuf
+	cbuf = $1
+	binqueue = 1
+	selfqueue = $2
+	bgpdma = $3
+	u2i = use2interval
+	if (u2i == -1) {
+		if (bgpdma > 0) { u2i = 1 } else {u2i = 0}
+	}
+	if (pc.id == 0) {printf("compress_bufsize=%d binqueue=%d selfqueue=%d bgpdma=%d\n", cbuf, binqueue, selfqueue, bgpdma)}
+	pc.spike_compress(cbuf, cbuf != 0, bgpdma + 4*u2i + 8*use2phase)
+	cvode.queue_mode(binqueue, selfqueue)
+}
+
+{load_file("net.hoc")}
+
+proc mkmodel() {local tt
+	tt = startsw()
+	ncellpow = $1
+	ncon = $2
+	ncell = 2^ncellpow
+	mknet()
+	if (n_xcell) {
+		mk_extra_cells(n_xcell)
+	}
+	set_burst(burstsizepow, burstfactor)
+	pnm.spikevec.resize(20000)
+	want_all_spikes()
+	mkmodel_time = startsw() - tt
+	if (pc.id == 0) { printf("mkmodel_time %g\n", mkmodel_time)}
+}
+
+objref ncbintst
+if (0 && pc.gid_exists(5)) {
+	ncbintst = pc.gid_connect(10, pc.gid2obj(5))
+	ncbintst.delay = 10
+}
+
+//{cvode_local(1)}
+setuptime = startsw() - setuptime
+if (pnm.myid == 0) {print "SetupTime: ", setuptime}
+// mkmodel(ncellpow, ncon)
+
+proc beforerun() {
+	if (pnm.myid == 0) {
+		printf("seq = %d\n", seq)
+		printf("ncell = %d ncon = %d tstop = %g\n", ncell, ncon, tstop)
+	}
+	pnm.spikevec.resize(0)
+	pnm.idvec.resize(0)
+	init_run_random(run_random_low_offset_)
+}
+
+proc methodrun() {local tt, n, nmax
+	tt = startsw()
+	beforerun()
+	bgpdma = $1
+	if (bgpdma == 0) {
+		spikemode(compress_bufsize,1, 0)
+	}else{
+		spikemode(0,1, bgpdma)
+	}
+	mkhist(100)
+	setup_method_time = startsw() - tt
+
+	prun()
+	afterrun(tt)
+}
+
+proc afterrun() {local tt, n, nmax
+	if (pnm.myid == 0) {print "RunTime: ", runtime}
+
+	print_total_spikes()
+	if (spkfile == 1) {
+		spike2file()
+	}
+	if (bgpdma > 0) {
+		n = pnm.pc.send_time(12)
+		nmax = pnm.pc.allreduce(n, 2)
+		if (pnm.myid == 0) {
+			printf("max multisend ranks on rank 0 is %d\n", n)
+			printf("max multisend ranks on all ranks is %d\n", nmax)
+		}
+	}
+	methodrun_time = startsw() - $1
+	elapsed_time = startsw() - begintime
+	p_tperf()
+	if (pnm.myid == 0) {
+		print "method info ", pnm.pc.send_time(8)
+		print "methodrun time: ", methodrun_time
+		printf("elapsed_time = %g\n", elapsed_time)
+		printf("real elapsed = %g\n", startsw() - begintime)
+	}
+}
+
+proc another() {local tt
+	tt = startsw()
+	beforerun()
+	set_maxstep_time = 0
+	prun1()
+	afterrun(tt)
+}
+
+proc doseries() {local i, m
+	// 1 Allgather, 2 ISend, 3 DMA, 4 DMA+replay
+	i = $1
+	while(i) {
+		m = i%10
+		i = int(i/10)
+		methodrun(m-1)
+	}
+}
+//doseries(series)
+
+proc finish() {
+	pnm.pc.runworker()
+	pnm.pc.done()
+	printf("total time = %g\n", startsw() - begintime)
+	quit()
+}
+
+if (done) {
+	finish()
+}

@@ -1,0 +1,37 @@
+// test harness for seeing the pattern of send and deliver times for events
+
+objref tq, gtq, myhist, hsav, hyy, hxx, fih
+tq = new Vector(4000)
+myhist = new Vector(1000)
+gtq = new Graph()
+
+del=.05
+hsize=450
+gtq.size(0,hsize*del,0,100)
+hsav = new Vector(hsize)
+hxx = new Vector(hsize)
+hyy = new Vector(hsize)
+proc pltq() {
+	cvode.print_event_queue(tq)
+	tq.sub(t)
+	myhist.hist(tq,0,hsize,del)
+	gtq.erase
+	myhist.mark(gtq,del,"|", 8, 1, 1)
+
+//	hsav.mul(-1).add(myhist).mark(gtq,del,"|",8,2,1)
+	hsav.mul(-1).add(myhist)
+	hxx.indvwhere(hsav, ">", 0)
+	hyy.index(hsav, hxx)
+	hxx.mul(del)
+	hyy.mark(gtq,hxx,"|",8,2,1)
+
+	hsav.copy(myhist,0,1,-1)
+	hsav.x[hsize-1]=0
+	doNotify()
+	cvode.event(t+del, "pltq()")
+}
+
+fih = new FInitializeHandler(2, "pltq()")
+
+
+

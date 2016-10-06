@@ -1,0 +1,61 @@
+{load_file("nrngui.hoc")}
+create acell_home_
+{load_file("netparmpi.hoc")}
+objref pnm, pc
+
+ncell = 10000
+ncon = 100
+
+ranoffset_ = 500 // adjacent cell streams will be correlated by this offset
+connect_random_low_start_ = 1
+run_random_low_start_ = 2
+
+pnm = new ParallelNetManager(ncell)
+pc = pnm.pc
+iterator pcitr() {local i1, i2
+	i1 = 0
+	for (i2=pc.id; i2 < ncell; i2 += pc.nhost) {
+		$&1 = i1
+		$&2 = i2
+		iterator_statement
+		i1 += 1
+	}
+}
+
+{load_file("perfrun.hoc")}
+
+
+setuptime = startsw()
+//{cvode.fifo_queue(1)}
+{load_file("net.hoc")}
+//want_all_spikes()
+{cvode_local(1)}
+tstop = 200
+init_run_random(run_random_low_start_)
+mkhist(100)
+
+setuptime = startsw() - setuptime
+
+load_file("pltq.hoc")
+xpanel("Control")
+xbutton("Stop", "stoprun = 1")
+xbutton("Go", "stoprun=0 prun()")
+xpanel()
+
+if (pnm.myid == 0) {print "SetupTime: ", setuptime}
+prun()
+if (pnm.myid == 0) {print "RunTime: ", runtime}
+
+{pnm.pc.runworker()}
+
+{pnm.prstat(1)}
+getstat()
+//{pnm.gatherspikes()}
+prhist()
+print_spike_stat_info()
+{pnm.pc.done()}
+
+//perf2file()
+//spike2file()
+{printf("ncell = %d ncon = %d tstop = %g\n", ncell, ncon, tstop) }
+
