@@ -1,3 +1,17 @@
+From https://senselab.med.yale.edu/ModelDB/showmodel.cshtml?model=137845
+Modified for performance testing of CoreNEURON.
+
+mkdir modcore
+cp *.mod modcore
+# be sure use a version of NEURON with a CoreNEURON compatible hh.mod
+nrnivmodl modcore
+
+mkdir coredat
+# 2^12 cells, 1000 connections per cell
+nrniv run.hoc # change ncellpow and second arg to mkmodel
+
+Original README
+----------
 Generates figures 3-9 of 
 Hines M, Kumar S, Schuermann F (2011).
 Comparison of neuronal spike exchange methods on a Blue Gene/P supercomputer.
