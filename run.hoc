@@ -3,8 +3,10 @@ done = 0
 
 if (1) {
 	seq = 0
+	spkfile = 1
 	ncellpow = 12
-	mkmodel(ncellpow, 1000)
+	ncon = 1000
+	mkmodel(ncellpow, ncon)
 	{use2phase = 0 doseries(1)}
 }
 
