@@ -63,9 +63,7 @@ iterator pcitr() {local i1, i2, x
 
 proc spikemode() {local u2i, cbuf
 	cbuf = $1
-	binqueue = 1
-	selfqueue = $2
-	bgpdma = $3
+	bgpdma = $2
 	u2i = use2interval
 	if (u2i == -1) {
 		if (bgpdma > 0) { u2i = 1 } else {u2i = 0}
@@ -119,9 +117,9 @@ proc methodrun() {local tt, n, nmax
 	beforerun()
 	bgpdma = $1
 	if (bgpdma == 0) {
-		spikemode(compress_bufsize,1, 0)
+		spikemode(compress_bufsize, 0)
 	}else{
-		spikemode(0,1, bgpdma)
+		spikemode(0, bgpdma)
 	}
 	mkhist(100)
 	setup_method_time = startsw() - tt

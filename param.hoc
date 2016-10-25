@@ -63,8 +63,8 @@ default_param("constyle", 0)
 default_param("bgpdma", 0)
 default_param("compress_bufsize", 10)
 default_param("series", 1)
-default_param("binqueue", 1) // set by spikemode
-default_param("selfqueue", 1) // se by spikemode arg
+default_param("binqueue", 0)
+default_param("selfqueue", 0)
 
 default_param("tstop", 200)
 default_param("spkfile", 0)
