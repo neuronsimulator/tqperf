@@ -10,6 +10,9 @@ mkdir coredat
 # 2^12 cells, 1000 connections per cell
 nrniv run.hoc # change ncellpow and second arg to mkmodel
 
+# or to create directory
+nrniv -c "strdef coredat" -c coredat="\"tmpdir\"" run.hoc
+
 corenrnbuild -m modcore -s $HOME/bb/coreneuron -i $HOME/bb/install \
   -b buildcpu -nopg
 

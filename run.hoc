@@ -1,4 +1,18 @@
 done = 0
+
+
+{xopen("defvar.hoc")}
+
+default_var("coredat", "coredat")
+
+// create directory for writing dataset
+{
+    strdef cmd
+    nrnpython("from commonutils import mkdir_p")
+    sprint(cmd, "mkdir_p('%s')", coredat)
+    nrnpython(cmd)
+}
+
 {load_file("init.hoc")}
 
 if (1) {
