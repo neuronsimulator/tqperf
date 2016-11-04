@@ -1,7 +1,7 @@
 done = 0
 
 
-{xopen("defvar.hoc")}
+{load_file("defvar.hoc")}
 
 default_var("coredat", "coredat")
 
