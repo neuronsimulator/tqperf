@@ -40,7 +40,7 @@ proc sortspikes() {local res, i, j, k, imin, x  localobj srt, s, cnts, d1, d2, g
 	pc.alltoall(s, cnts, d1)
 	pc.alltoall(pnm.idvec, cnts, d2)
 
-	if (d1.size == 0) { return }
+    if (d1.size != 0) {
 	srt = d1.sortindex
 	d1.index(d1, srt)
 	d2.index(d2, srt)
@@ -60,6 +60,7 @@ proc sortspikes() {local res, i, j, k, imin, x  localobj srt, s, cnts, d1, d2, g
 		}
 		imin = i
 	}
+    }
 	pc.barrier()
 }
 
