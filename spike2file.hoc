@@ -3,6 +3,7 @@
 proc sortspikes() {local res, i, j, k, imin, x  localobj srt, s, cnts, d1, d2, gs
 	s = pnm.spikevec
 	// for testing, round to the file output resolution
+    // this is now disabled to compare the results with coreneuron
 	//res = .001
 	//pnm.spikevec.div(res).add(.5).floor().mul(res)
 	spike_count = pc.allreduce(s.size, 1)
