@@ -3,8 +3,9 @@
 proc sortspikes() {local res, i, j, k, imin, x  localobj srt, s, cnts, d1, d2, gs
 	s = pnm.spikevec
 	// for testing, round to the file output resolution
-	res = .001
-	pnm.spikevec.div(res).add(.5).floor().mul(res)
+    // this is now disabled to compare the results with coreneuron
+	//res = .001
+	//pnm.spikevec.div(res).add(.5).floor().mul(res)
 	spike_count = pc.allreduce(s.size, 1)
 	if (pc.id == 0) {printf("spike_count %d\n", spike_count)}
 
@@ -84,7 +85,7 @@ proc spike2file() { local i, j, nf, me   localobj outf, s, vs, vg
 			}
 			outf.aopen(s.s)
 			for i=0, vs.size-1  {
-				outf.printf("%.3f %d\n", vs.x[i], vg.x[i])
+				outf.printf("%.8g %d\n", vs.x[i], vg.x[i])
 			}
 			outf.close
 		}
