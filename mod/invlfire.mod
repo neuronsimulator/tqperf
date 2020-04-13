@@ -191,7 +191,6 @@ ENDVERBATIM
 }
 
 VERBATIM
-#if !NRNBBCORE
 static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargsproto_) {
   /* error if using the legacy scop_exprand */
   if (!_p_r) {
@@ -200,6 +199,7 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
   }
   if (d) {
     uint32_t* di = ((uint32_t*)d) + *offset;
+#if !NRNBBCORE
     if (_ran_compat == 1) {
       void** pv = (void**)(&_p_r);
       /* error if not using Random123 generator */
@@ -208,6 +208,9 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
         assert(0);
       }
     }else{
+#else
+    {
+#endif
       nrnran123_State** pv = (nrnran123_State**)(&_p_r);
       nrnran123_getids3(*pv, di, di+1, di+2);
     }
@@ -215,7 +218,6 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
   }
   *offset += 3;
 }
-#endif
 
 static void bbcore_read(double* x, int* d, int* xx, int* offset, _threadargsproto_) {
   assert(!_p_r);

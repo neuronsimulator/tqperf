@@ -1,28 +1,26 @@
 From https://senselab.med.yale.edu/ModelDB/showmodel.cshtml?model=137845
+
 Modified for performance testing of CoreNEURON.
 
-mkdir modcore
-cp *.mod modcore
+```
 # be sure use a version of NEURON with a CoreNEURON compatible hh.mod
-nrnivmodl modcore
+nrnivmodl mod
 
-mkdir coredat
 # 2^12 cells, 1000 connections per cell
-nrniv run.hoc # change ncellpow and second arg to mkmodel
+mpiexec -n 4 nrniv run.hoc -mpi  # change ncellpow and second arg to mkmodel
 
 # or with specific stop time as
-nrniv -c tstop=5 run.hoc
+mpiexec -n 4 nrniv -c tstop=50 run.hoc -mpi
 
-corenrnbuild -m modcore -s $HOME/bb/coreneuron -i $HOME/bb/install \
-  -b buildcpu -nopg
-
-buildcpu/bin/coreneuron_exec -e 200 -d coredat
-
+# prepare coreneuron
+nrnivmodl-core mod
+mpiexec -n 4 ./x86_64/special-core -e 50 -d coredat/ --mpi --multisend
+```
 
 
 Original README
 ----------
-Generates figures 3-9 of 
+Generates figures 3-9 of
 Hines M, Kumar S, Schuermann F (2011).
 Comparison of neuronal spike exchange methods on a Blue Gene/P supercomputer.
 Frontiers in Computational Neuroscience.
