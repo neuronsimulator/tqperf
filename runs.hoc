@@ -54,7 +54,6 @@ if (runs == 5) {
 	mk_extra_cells(0)
 	compress_bufsize=20 doseries(1)
 	compress_bufsize=40 doseries(1)
-
 }
 
 // look at effect of bursting,  gid distribution, and connection pattern
