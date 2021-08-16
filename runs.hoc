@@ -50,14 +50,11 @@ if (runs == 5) {
 	seq = 24
 	ncellpow = log(256*pc.nhost)/log(2)
 	mkmodel(ncellpow, 1000)
-	use2interval=0
 	use2interval=-1
 	mk_extra_cells(0)
 	compress_bufsize=20 doseries(1)
 	compress_bufsize=40 doseries(1)
 
-	ncellpow = log(32*pc.nhost)/log(2)
-	mkmodel(ncellpow, 10000)
 }
 
 // look at effect of bursting,  gid distribution, and connection pattern
