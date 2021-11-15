@@ -1,5 +1,14 @@
 From https://senselab.med.yale.edu/ModelDB/showmodel.cshtml?model=137845
 
+Modified for validation of multisend and CoreNEURON
+
+```
+nrnivmodl -coreneuron mod
+python test1.py
+mpiexec -n 4 nrniv -mpi -python test1.py
+python -m pytest test1.py
+```
+
 Modified for performance testing of CoreNEURON.
 
 ```

@@ -115,6 +115,8 @@ VERBATIM
 double nrn_random_pick(void* _r);
 void* nrn_random_arg(int argpos);
 int nrn_random_isran123(void* _r, uint32_t* id1, uint32_t* id2, uint32_t* id3);
+int nrn_random123_setseq(void* _r, uint32_t seq, char which);
+int nrn_random123_getseq(void* _r, uint32_t* seq, char* which);  
 #endif
 ENDVERBATIM
 
@@ -198,6 +200,7 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
     assert(0);
   }
   if (d) {
+    char which;
     uint32_t* di = ((uint32_t*)d) + *offset;
 #if !NRNBBCORE
     if (_ran_compat == 1) {
@@ -207,24 +210,55 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
         fprintf(stderr, "InvlFire: Random123 generator is required\n");
         assert(0);
       }
+      nrn_random123_getseq(*pv, di+3, &which);
+      di[4] = (int)which;
     }else{
 #else
     {
 #endif
       nrnran123_State** pv = (nrnran123_State**)(&_p_r);
       nrnran123_getids3(*pv, di, di+1, di+2);
+      nrnran123_getseq(*pv, di+3, &which);
+int z = 0;
+#if NRNBBCORE
+z = 1;
+#endif
+      di[4] = (int)which;
+#if NRNBBCORE
+      /* CORENeuron does not call DESTRUCTOR so... */
+      nrnran123_deletestream(*pv);
+      *pv = (nrnran123_State*)0;
+#endif
     }
     /*printf("Netstim bbcore_write %d %d %d\n", di[0], di[1], di[3]);*/
   }
-  *offset += 3;
+  *offset += 5;
 }
 
 static void bbcore_read(double* x, int* d, int* xx, int* offset, _threadargsproto_) {
-  assert(!_p_r);
   uint32_t* di = ((uint32_t*)d) + *offset;
+#if NRNBBCORE
   nrnran123_State** pv = (nrnran123_State**)(&_p_r);
   *pv = nrnran123_newstream3(di[0], di[1], di[2]);
-  *offset += 3;
+  nrnran123_setseq(*pv, di[3], (char)di[4]);
+#else
+  uint32_t id1, id2, id3;
+  assert(_p_r);
+  if (_ran_compat == 1) { /* Hoc Random.Random123 */
+    void** pv = (void**)(&_p_r);
+    int b = nrn_random_isran123(*pv, &id1, &id2, &id3);
+    assert(b);
+    nrn_random123_setseq(*pv, di[3], (char)di[4]);
+  }else{
+    assert(_ran_compat == 2);
+    nrnran123_State** pv = (nrnran123_State**)(&_p_r);
+    nrnran123_getids3(*pv, &id1, &id2, &id3);
+    nrnran123_setseq(*pv, di[3], (char)di[4]);
+  }
+  /* Random123 on NEURON side has same ids as on CoreNEURON side */
+  assert(di[0] == id1 && di[1] == id2 && di[2] == id3);
+#endif
+  *offset += 5;
 }
 ENDVERBATIM
 
