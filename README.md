@@ -3,7 +3,9 @@ From https://senselab.med.yale.edu/ModelDB/showmodel.cshtml?model=137845
 Modified for validation of multisend and CoreNEURON
 
 ```
-nrnivmodl -coreneuron mod
+# The -lcrypto is required for modx/invlfiresha.mod
+cp mod/*.mod modx # until allow multiple directories for nrnivmod-core
+nrnivmodl -coreneuron -l -lcrypto -loadflags -lcrypto modx
 python test1.py
 mpiexec -n 4 nrniv -mpi -python test1.py
 python -m pytest test1.py
