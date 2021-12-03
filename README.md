@@ -10,6 +10,10 @@ python test1.py
 mpiexec -n 4 nrniv -mpi -python test1.py
 python -m pytest test1.py
 ```
+Note: for substantive test of phase2 multisend need at least
+```
+mpiexec -oversubscribe -n 16 nrniv -mpi -python test1.py
+```
 
 Modified for performance testing of CoreNEURON.
 

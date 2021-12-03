@@ -12,16 +12,19 @@ h("done = 0")
 h.load_file("init.hoc")
 h.useSHA = 1
 
+
 def result():
     cells = h.pnm.cells
     if h.useSHA == 0.0:
         res = [(int(c.pp.noutput), int(c.pp.ninput)) for c in cells]
         noutput, ninput = zip(*res)
-        #print("{} noutput={} ninput={}".format(pc.id(), sum(noutput), sum(ninput)), flush=True)
+        # print("{} noutput={} ninput={}".format(pc.id(), sum(noutput), sum(ninput)), flush=True)
     else:
-        res = [(int(c.pp.noutput), int(c.pp.ninput), int(c.pp.shafinal())) for c in cells]
+        res = [
+            (int(c.pp.noutput), int(c.pp.ninput), int(c.pp.shafinal())) for c in cells
+        ]
         noutput, ninput, sha = zip(*res)
-        #print(pc.id(), sha[0:4], flush=True)
+        # print(pc.id(), sha[0:4], flush=True)
     return res
 
 
@@ -120,11 +123,18 @@ def test_1():
     pc.nthread(1)
 
     if pc.nhost() > 1:
-        for nthread, nspk, gid_compress in itertools.product([1,4], [0, 3, 10], [0, 1]):
+        for nthread, nspk, gid_compress in itertools.product(
+            [1, 4], [0, 3, 10], [0, 1]
+        ):
+            # Note: within coreneuron, if nspk is > 0 then gid_compress is turned on.
             pc.nthread(nthread)
             pc.spike_compress(nspk, gid_compress)
             coreneuron.enable = True
-            pr("binq nthread={} nspk={} gid_compress={}".format(nthread, nspk, gid_compress))
+            pr(
+                "binq nthread={} nspk={} gid_compress={}".format(
+                    nthread, nspk, gid_compress
+                )
+            )
             pr(coreneuron.nrncore_arg(h.tstop))
             compare(std, prun2())
 
