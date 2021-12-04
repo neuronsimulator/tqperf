@@ -66,11 +66,11 @@ def pr(args):
 
 def test_1():
     h.dt = 1.0 / 32.0
-    h.tstop = 100
+    h.tstop = 50
     h.seq = 0
     h.spkfile = 0
-    h.ncellpow = 10
-    h.ncon = 100
+    h.ncellpow = 8
+    h.ncon = 50
     h.nconrange = 1
     h.mkmodel(h.ncellpow, h.ncon)
     print("netcon count ", h.List("NetCon").count())

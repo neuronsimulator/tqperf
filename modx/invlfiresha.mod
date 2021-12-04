@@ -76,7 +76,7 @@ static void nrnsha1_init(void** ctx) {
     // needs to be multiple of sizeof(int) for bbcore write and read
     // 96 bytes (24 4 byte int)
     sha_size_int = (sizeof(SHA_CTX) + sizeof(int) - 1)/sizeof(int);
-    printf("sha_size_int=%zd\n", sha_size_int);
+    // printf("sha_size_int=%zd\n", sha_size_int);
   }
   if (!*ctx) { *ctx = malloc(sha_size_int*sizeof(int));}
   assert(*ctx);
