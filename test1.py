@@ -64,6 +64,16 @@ def pr(args):
         print(args, flush=True)
 
 
+def send_recv_info():
+    # Fairly meaningless for the ci test. And times only calculated on BGP.
+    # But line coverage for bgpdma.cpp > 90%
+    pr("send_time_type [min, avg, max]")
+    for name, type in {"recv time":2, "send time":3, "xtra cons checks":4,"greatest length multisend":12}.items():
+        r = pc.send_time(type)
+        minavgmax=[pc.allreduce(r, m) for m in [3,1,2]]
+        minavgmax[1] /= pc.nhost()
+        pr("{} {}".format(name, minavgmax))
+	
 def test_1():
     h.dt = 1.0 / 32.0
     h.tstop = 50
@@ -111,6 +121,8 @@ def test_1():
             pr(coreneuron.nrncore_arg(h.tstop))
             coreneuron.enable = False
             compare(std, prun2())
+
+            send_recv_info()
 
     pr("AllGather spike compression (with binq standard)")
     # As interprocess spike times are on dt boundaries, need a binq
