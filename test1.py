@@ -81,7 +81,7 @@ def test_1():
     h.cvode.cache_efficient(1)
 
     pr("NEURON multiple threads")
-    pc.nthread(4)
+    pc.nthread(2)
     compare(std, prun())
 
     pr("CoreNEURON single and multiple threads")
@@ -89,16 +89,17 @@ def test_1():
     coreneuron.verbose = 0
     coreneuron.enable = True
     compare(std, prun())
-    pc.nthread(4)
+    pc.nthread(2)
     compare(std, prun())
 
     pr("Multiple threads NEURON <-> CoreNEURON back and forth")
-    pc.nthread(4)
+    pc.nthread(2)
     compare(std, prun2())
 
     # Multisend method
     pc.nthread(1)  # multiple threads not allowed
     if pc.nhost() > 1:
+        h.mkmodel(h.ncellpow, h.ncon) # cover destructors and check for leaks
         for use2phase, use2subinterval in itertools.product([0, 1], [0, 1]):
             pr(
                 "multisend use2phase={}, use2subinterval={}".format(
@@ -114,6 +115,7 @@ def test_1():
     pr("AllGather spike compression (with binq standard)")
     # As interprocess spike times are on dt boundaries, need a binq
     # standard and test with binq on.
+    h.mkmodel(7, 10)
     pc.spike_compress(0, 0)
     h.cvode.queue_mode(1, 0)
     std = prun()
@@ -124,7 +126,7 @@ def test_1():
 
     if pc.nhost() > 1:
         for nthread, nspk, gid_compress in itertools.product(
-            [1, 4], [0, 3, 10], [0, 1]
+            [1,2], [0, 3, 10], [0, 1]
         ):
             # Note: within coreneuron, if nspk is > 0 then gid_compress is turned on.
             pc.nthread(nthread)
