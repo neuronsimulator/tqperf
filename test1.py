@@ -68,12 +68,18 @@ def send_recv_info():
     # Fairly meaningless for the ci test. And times only calculated on BGP.
     # But line coverage for bgpdma.cpp > 90%
     pr("send_time_type [min, avg, max]")
-    for name, type in {"recv time":2, "send time":3, "xtra cons checks":4,"greatest length multisend":12}.items():
+    for name, type in {
+        "recv time": 2,
+        "send time": 3,
+        "xtra cons checks": 4,
+        "greatest length multisend": 12,
+    }.items():
         r = pc.send_time(type)
-        minavgmax=[pc.allreduce(r, m) for m in [3,1,2]]
+        minavgmax = [pc.allreduce(r, m) for m in [3, 1, 2]]
         minavgmax[1] /= pc.nhost()
         pr("{} {}".format(name, minavgmax))
-	
+
+
 def test_1():
     h.dt = 1.0 / 32.0
     h.tstop = 50
@@ -109,7 +115,7 @@ def test_1():
     # Multisend method
     pc.nthread(1)  # multiple threads not allowed
     if pc.nhost() > 1:
-        h.mkmodel(h.ncellpow, h.ncon) # cover destructors and check for leaks
+        h.mkmodel(h.ncellpow, h.ncon)  # cover destructors and check for leaks
         for use2phase, use2subinterval in itertools.product([0, 1], [0, 1]):
             pr(
                 "multisend use2phase={}, use2subinterval={}".format(
@@ -123,6 +129,7 @@ def test_1():
             compare(std, prun2())
 
             send_recv_info()
+        pc.gid_clear()  # some extra coverage
 
     pr("AllGather spike compression (with binq standard)")
     # As interprocess spike times are on dt boundaries, need a binq
@@ -138,7 +145,7 @@ def test_1():
 
     if pc.nhost() > 1:
         for nthread, nspk, gid_compress in itertools.product(
-            [1,2], [0, 3, 10], [0, 1]
+            [1, 2], [0, 3, 10], [0, 1]
         ):
             # Note: within coreneuron, if nspk is > 0 then gid_compress is turned on.
             pc.nthread(nthread)
