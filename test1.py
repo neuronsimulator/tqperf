@@ -74,7 +74,7 @@ def send_recv_info():
         "xtra cons checks": 4,
         "greatest length multisend": 12,
     }.items():
-        r = pc.send_time(type)
+        r = pc.send_time(type) if type != 4 else pc.send_time(type, h.Vector())
         minavgmax = [pc.allreduce(r, m) for m in [3, 1, 2]]
         minavgmax[1] /= pc.nhost()
         pr("{} {}".format(name, minavgmax))
