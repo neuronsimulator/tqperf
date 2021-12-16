@@ -8,9 +8,22 @@ import itertools
 
 pc = h.ParallelContext()
 
+useSHA = 0
+try:
+    h.IntervalFireSHA()
+    useSHA = 1
+except:
+    h(
+        """
+begintemplate IntervalFireSHA
+proc init() {}
+endtemplate IntervalFireSHA
+    """
+    )
+
 h("done = 0")
 h.load_file("init.hoc")
-h.useSHA = 1
+h.useSHA = useSHA
 
 
 def result():
@@ -158,8 +171,10 @@ def test_1():
             )
             pr(coreneuron.nrncore_arg(h.tstop))
             compare(std, prun2())
+    pc.nthread(1)
 
 
 if __name__ == "__main__":
     test_1()
-    h.finish()
+    pc.barrier()
+    h.quit()
