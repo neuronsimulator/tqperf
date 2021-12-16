@@ -1,11 +1,11 @@
 #!/bin/bash
 set -ex
 unset CORENEURONLIB
-CPU="`arch`"
+CPU="`uname -m`"
 cp mod/*.mod modx
 
 if test "$CPU" != "" ; then
-  rm -r -f `arch`
+  rm -r -f "$CPU"
 fi
 
 if test "`uname -s`" = "Darwin" ; then
