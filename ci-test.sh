@@ -16,5 +16,6 @@ else
   $NRNHOME/bin/nrnivmodl -coreneuron -l -lcrypto -loadflags -lcrypto modx
 fi
 
-mpiexec ${MPIEXEC_OVERSUBSCRIBE---oversubscribe} -n 16 $NRNHOME/bin/nrniv -mpi -python test1.py
- 
+special_exe=`find . -type f -name "special" -print -quit`
+mpiexec ${MPIEXEC_OVERSUBSCRIBE---oversubscribe} -n 16 $special_exe -mpi -python test1.py
+
