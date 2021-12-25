@@ -11,10 +11,11 @@
 
 NEURON {
   THREADSAFE
-  ARTIFICIAL_CELL IntervalFire
+  ARTIFICIAL_CELL IntervalFireSHA
   RANGE tau, m, invl, burst_start, burst_stop, burst_factor
   : m plays the role of voltage
   BBCOREPOINTER r
+  BBCOREPOINTER nrnsha1
   RANGE noutput, ninput : count number of spikes generated and coming in
   GLOBAL invl_low, invl_high
 }
@@ -37,6 +38,7 @@ ASSIGNED {
   tau1
   minf1
   ninput noutput
+  nrnsha1
 }
 
 VERBATIM
@@ -54,6 +56,48 @@ static int _ran_compat; /* specifies the noise style for all instances */
 #define IFNEWSTYLE(arg) if(_ran_compat == 2) { arg }
         
 #endif /* running in NEURON */
+
+/*
+ Using SHA1 hash to incrementally accumulate information about events
+ arriving at NET_RECEIVE block of this cell. As order of events arriving
+ at same time is non-deterministic, anything other than time info is
+ not guaranteed to result in same hash
+*/
+
+#include <openssl/sha.h>
+
+static size_t sha_size_int;
+
+static void nrnsha1_delete(void** ctx) {
+  if (*ctx) { free(*ctx) ; *ctx = NULL; }
+}
+static void nrnsha1_init(void** ctx) {
+  if (!sha_size_int) {
+    // needs to be multiple of sizeof(int) for bbcore write and read
+    // 96 bytes (24 4 byte int)
+    sha_size_int = (sizeof(SHA_CTX) + sizeof(int) - 1)/sizeof(int);
+    // printf("sha_size_int=%zd\n", sha_size_int);
+  }
+  if (!*ctx) { *ctx = malloc(sha_size_int*sizeof(int));}
+  assert(*ctx);
+  assert(SHA1_Init((SHA_CTX*)(*ctx)));
+}
+static void nrnsha1_update(void* ctx, const void* data, size_t len) {
+  assert(ctx);
+  assert(SHA1_Update((SHA_CTX*)ctx, data, len));
+}
+static double nrnsha1_final(void* ctx) {
+  union {
+    unsigned char md[SHA_DIGEST_LENGTH];
+    size_t val;
+  } u;
+  if (!ctx) {
+    return 0.0;
+  }
+  assert(SHA1_Final(u.md, (SHA_CTX*)ctx));
+  return (double)(u.val & 0xffffffffffff);
+}
+
 ENDVERBATIM
 
 
@@ -64,6 +108,8 @@ INITIAL {
       /* only this style initializes the stream on finitialize */
       IFNEWSTYLE(nrnran123_setseq((nrnran123_State*)_p_r, 0, 0);)
     }
+    
+  nrnsha1_init((void**)&_p_nrnsha1);
   ENDVERBATIM
 
   ninput = 0
@@ -81,7 +127,17 @@ FUNCTION M() {
   M = minf + (m - minf)*exp(-(t - t0)*tau1)
 }
 
+FUNCTION shafinal() {
+VERBATIM
+  _lshafinal = nrnsha1_final((void*)_p_nrnsha1);
+  nrnsha1_delete((void**)&_p_nrnsha1);
+ENDVERBATIM
+}
+
 NET_RECEIVE (w) {
+VERBATIM
+  nrnsha1_update((void*)_p_nrnsha1, &(t), sizeof(double));
+ENDVERBATIM
   m = M()
   t0 = t
   if (flag == 0) {
@@ -192,6 +248,23 @@ VERBATIM
 ENDVERBATIM
 }
 
+DESTRUCTOR {
+VERBATIM
+  if (_p_r) {
+#if NRNBBCORE
+    { /*mod2c does not translate DESTRUCTOR */
+#else
+    if (_ran_compat == 2) {
+#endif
+      nrnran123_State** pv = (nrnran123_State**)(&_p_r);
+      nrnran123_deletestream(*pv);
+      *pv = (nrnran123_State*)0;
+    }
+  }
+  nrnsha1_delete((void**)&_p_nrnsha1);
+ENDVERBATIM
+}
+
 VERBATIM
 static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargsproto_) {
   /* error if using the legacy scop_exprand */
@@ -219,6 +292,10 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
       nrnran123_State** pv = (nrnran123_State**)(&_p_r);
       nrnran123_getids3(*pv, di, di+1, di+2);
       nrnran123_getseq(*pv, di+3, &which);
+int z = 0;
+#if NRNBBCORE
+z = 1;
+#endif
       di[4] = (int)which;
 #if NRNBBCORE
       /* CORENeuron does not call DESTRUCTOR so... */
@@ -227,8 +304,18 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
 #endif
     }
     /*printf("Netstim bbcore_write %d %d %d\n", di[0], di[1], di[3]);*/
+    {
+      if (!_p_nrnsha1) { nrnsha1_init((void**)&_p_nrnsha1); }
+      int* ix = (int*)_p_nrnsha1;
+      for (size_t i = 0; i < sha_size_int; ++i) {
+        di[5 + i] = ix[i];
+      }
+    }
+#if NRNBBCORE
+    nrnsha1_delete((void**)&_p_nrnsha1);
+#endif
   }
-  *offset += 5;
+  *offset += 5 + sha_size_int;
 }
 
 static void bbcore_read(double* x, int* d, int* xx, int* offset, _threadargsproto_) {
@@ -254,7 +341,14 @@ static void bbcore_read(double* x, int* d, int* xx, int* offset, _threadargsprot
   /* Random123 on NEURON side has same ids as on CoreNEURON side */
   assert(di[0] == id1 && di[1] == id2 && di[2] == id3);
 #endif
-  *offset += 5;
+  {
+    if (!_p_nrnsha1) { nrnsha1_init((void**)&_p_nrnsha1); }
+    int* ix = (int*)_p_nrnsha1;
+    for (size_t i = 0; i < sha_size_int; ++i) {
+      ix[i] = di[5 + i];
+    }
+  }
+  *offset += 5 + sha_size_int;
 }
 ENDVERBATIM
 

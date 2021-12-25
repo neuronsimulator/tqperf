@@ -2,6 +2,7 @@
 //Artificial cells
 //   IF_IntervalFire
 
+useSHA=0
 
 // modified from NetGUI hoc output to add the random interval
 
@@ -10,11 +11,16 @@
 
 begintemplate IF_IntervalFire
 public pp, connect2target, x, y, z, position, is_art, r, hseed, lseed, ranstart
+external useSHA
 objref pp, r
 proc init() {
   lseed = $2
   hseed = $1
-  pp = new IntervalFire()
+  if (useSHA) {
+    pp = new IntervalFireSHA()
+  }else{
+    pp = new IntervalFire()
+  }
   pp.set_rand123($1, $2, 0)
   r = new Random()
 }
