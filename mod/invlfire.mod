@@ -219,10 +219,6 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
       nrnran123_State** pv = (nrnran123_State**)(&_p_r);
       nrnran123_getids3(*pv, di, di+1, di+2);
       nrnran123_getseq(*pv, di+3, &which);
-int z = 0;
-#if NRNBBCORE
-z = 1;
-#endif
       di[4] = (int)which;
 #if NRNBBCORE
       /* CORENeuron does not call DESTRUCTOR so... */
