@@ -13,7 +13,7 @@ if test "`uname -s`" = "Darwin" ; then
   # number of input and output events per cell
   $NRNHOME/bin/nrnivmodl -coreneuron mod
 else
-  $NRNHOME/bin/nrnivmodl -coreneuron -l -lcrypto -loadflags -lcrypto modx
+  $NRNHOME/bin/nrnivmodl -coreneuron -loadflags -lcrypto modx
 fi
 
 special_exe=`find . -type f -name "special" -print -quit`
