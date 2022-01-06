@@ -4,7 +4,7 @@
 # mpiexec -n 4 nrniv -mpi -python test1.py
 
 from neuron import h, coreneuron
-import itertools
+import itertools, sys, traceback
 
 pc = h.ParallelContext()
 
@@ -175,6 +175,11 @@ def test_1():
 
 
 if __name__ == "__main__":
-    test_1()
+    try:
+        test_1()
+    except:
+        traceback.print_exc()
+        # Make the CTest test fail
+        sys.exit(42)
     pc.barrier()
     h.quit()
