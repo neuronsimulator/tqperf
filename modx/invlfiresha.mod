@@ -203,7 +203,7 @@ VERBATIM
   if (ifarg(1)) {
     *pv = nrn_random_arg(1);
   }else{
-    *pv = nullptr;
+    *pv = (Rand*)0;
   }
  }
 #endif
@@ -286,7 +286,7 @@ z = 1;
 #if NRNBBCORE
       /* CORENeuron does not call DESTRUCTOR so... */
       nrnran123_deletestream(*pv);
-      *pv = nullptr;
+      *pv = (nrnran123_State*)0;
 #endif
     }
     /*printf("Netstim bbcore_write %d %d %d\n", di[0], di[1], di[3]);*/

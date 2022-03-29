@@ -147,7 +147,7 @@ VERBATIM
   if (ifarg(1)) {
     *pv = nrn_random_arg(1);
   }else{
-    *pv = nullptr;
+    *pv = (Rand*) 0;;
   }
  }
 #endif
@@ -166,7 +166,7 @@ VERBATIM
   _ran_compat = 2;
   if (*pv) {
     nrnran123_deletestream(*pv);
-    *pv = nullptr;
+    *pv = (nrnran123_State*)0;
   }
   if (ifarg(3)) {
     *pv = nrnran123_newstream3((uint32_t)*getarg(1), (uint32_t)*getarg(2), (uint32_t)*getarg(3));
@@ -209,7 +209,7 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
 #if NRNBBCORE
       /* CORENeuron does not call DESTRUCTOR so... */
       nrnran123_deletestream(*pv);
-      *pv = nullptr;
+      *pv = (nrnran123_State*)0;
 #endif
     }
     /*printf("Netstim bbcore_write %d %d %d\n", di[0], di[1], di[3]);*/
