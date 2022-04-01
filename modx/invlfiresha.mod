@@ -163,20 +163,6 @@ FUNCTION firetime()(ms) { : m < 1 and minf > 1
 :  printf("firetime=%g\n", firetime)
 }
 
-VERBATIM        
-#include "nrnran123.h"
-        
-#if !NRNBBCORE
-/* backward compatibility */
-double nrn_random_pick(void* _r);
-void* nrn_random_arg(int argpos);
-int nrn_random_isran123(void* _r, uint32_t* id1, uint32_t* id2, uint32_t* id3);
-int nrn_random123_setseq(void* _r, uint32_t seq, char which);
-int nrn_random123_getseq(void* _r, uint32_t* seq, char* which);  
-#endif
-ENDVERBATIM
-
-
 PROCEDURE specify_invl() {
 VERBATIM {
   if (!_p_r) {
@@ -187,7 +173,7 @@ VERBATIM {
   if (_ran_compat == 2) {
     invl = nrnran123_dblpick((nrnran123_State*)_p_r);
   }else{
-    invl = nrn_random_pick(_p_r);
+    invl = nrn_random_pick((Rand*)_p_r);
   }
 #else
   invl = nrnran123_dblpick((nrnran123_State*)_p_r); 
@@ -208,7 +194,7 @@ PROCEDURE set_rand() {
 VERBATIM
 #if !NRNBBCORE
  {
-  void** pv = (void**)(&_p_r);
+  Rand** pv = (Rand**)(&_p_r);
   if (_ran_compat == 2) {
     fprintf(stderr, "NetStim.set_rand123 was previously called\n");
     assert(0);
@@ -217,7 +203,7 @@ VERBATIM
   if (ifarg(1)) {
     *pv = nrn_random_arg(1);
   }else{
-    *pv = (void*)0;
+    *pv = (Rand*)0;
   }
  }
 #endif
@@ -277,7 +263,7 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
     uint32_t* di = ((uint32_t*)d) + *offset;
 #if !NRNBBCORE
     if (_ran_compat == 1) {
-      void** pv = (void**)(&_p_r);
+      Rand** pv = (Rand**)(&_p_r);
       /* error if not using Random123 generator */
       if (!nrn_random_isran123(*pv, di, di+1, di+2)) {
         fprintf(stderr, "InvlFire: Random123 generator is required\n");
@@ -328,7 +314,7 @@ static void bbcore_read(double* x, int* d, int* xx, int* offset, _threadargsprot
   uint32_t id1, id2, id3;
   assert(_p_r);
   if (_ran_compat == 1) { /* Hoc Random.Random123 */
-    void** pv = (void**)(&_p_r);
+    Rand** pv = (Rand**)(&_p_r);
     int b = nrn_random_isran123(*pv, &id1, &id2, &id3);
     assert(b);
     nrn_random123_setseq(*pv, di[3], (char)di[4]);
