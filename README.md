@@ -1,6 +1,16 @@
+# Overview
+
 From https://senselab.med.yale.edu/ModelDB/showmodel.cshtml?model=137845
 
-Modified for validation of multisend and CoreNEURON
+Modified for validation of multisend and CoreNEURON.
+
+This test is run as part of the NEURON CTest suite.
+
+## Compatibility
+
+- This version of the model is compatible with NEURON versions newer than 8.1 (#11)
+
+## Running the model
 
 ```
 # The -lcrypto is required for modx/invlfiresha.mod
