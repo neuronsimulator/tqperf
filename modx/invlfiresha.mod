@@ -292,10 +292,7 @@ z = 1;
     /*printf("Netstim bbcore_write %d %d %d\n", di[0], di[1], di[3]);*/
     {
       if (!_p_nrnsha1) { nrnsha1_init((void**)&_p_nrnsha1); }
-      int* ix = (int*)_p_nrnsha1;
-      for (size_t i = 0; i < sha_size_int; ++i) {
-        di[5 + i] = ix[i];
-      }
+      memcpy(di + 5, (void*)_p_nrnsha1, sha_size_int * sizeof(int));
     }
 #if NRNBBCORE
     nrnsha1_delete((void**)&_p_nrnsha1);
@@ -329,10 +326,7 @@ static void bbcore_read(double* x, int* d, int* xx, int* offset, _threadargsprot
 #endif
   {
     if (!_p_nrnsha1) { nrnsha1_init((void**)&_p_nrnsha1); }
-    int* ix = (int*)_p_nrnsha1;
-    for (size_t i = 0; i < sha_size_int; ++i) {
-      ix[i] = di[5 + i];
-    }
+    memcpy((void*)_p_nrnsha1, di + 5, sha_size_int * sizeof(int));
   }
   *offset += 5 + sha_size_int;
 }
