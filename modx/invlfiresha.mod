@@ -80,11 +80,13 @@ static void nrnsha1_init(void** ctx) {
   }
   if (!*ctx) { *ctx = malloc(sha_size_int*sizeof(int));}
   assert(*ctx);
-  assert(SHA1_Init((SHA_CTX*)(*ctx)));
+  int status = SHA1_Init((SHA_CTX*)(*ctx));
+  assert(status);
 }
 static void nrnsha1_update(void* ctx, const void* data, size_t len) {
   assert(ctx);
-  assert(SHA1_Update((SHA_CTX*)ctx, data, len));
+  int status = SHA1_Update((SHA_CTX*)ctx, data, len);
+  assert(status);
 }
 static double nrnsha1_final(void* ctx) {
   union {
@@ -94,7 +96,8 @@ static double nrnsha1_final(void* ctx) {
   if (!ctx) {
     return 0.0;
   }
-  assert(SHA1_Final(u.md, (SHA_CTX*)ctx));
+  int status = SHA1_Final(u.md, (SHA_CTX*)ctx);
+  assert(status);
   return (double)(u.val & 0xffffffffffff);
 }
 
