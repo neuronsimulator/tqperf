@@ -4,39 +4,31 @@
 # mpiexec -n 4 nrniv -mpi -python test1.py
 
 from neuron import h, coreneuron
-import itertools, sys, traceback
+import itertools, math, sys, traceback
 
 pc = h.ParallelContext()
 
-useSHA = 0
+InterValFireImplementation = 0
 try:
-    h.IntervalFireSHA()
-    useSHA = 1
+    h.IntervalFireStats()
+    InterValFireImplementation = 2
 except:
-    h(
-        """
-begintemplate IntervalFireSHA
-proc init() {}
-endtemplate IntervalFireSHA
-    """
-    )
+    pass
 
 h("done = 0")
 h.load_file("init.hoc")
-h.useSHA = useSHA
+h.InterValFireImplementation = InterValFireImplementation
 
 
 def result():
     cells = h.pnm.cells
-    if h.useSHA == 0.0:
+    if h.InterValFireImplementation < 1:
         res = [(int(c.pp.noutput), int(c.pp.ninput)) for c in cells]
-        noutput, ninput = zip(*res)
+        # noutput, ninput = zip(*res)
         # print("{} noutput={} ninput={}".format(pc.id(), sum(noutput), sum(ninput)), flush=True)
     else:
-        res = [
-            (int(c.pp.noutput), int(c.pp.ninput), int(c.pp.shafinal())) for c in cells
-        ]
-        noutput, ninput, sha = zip(*res)
+        res = [(int(c.pp.noutput), int(c.pp.ninput), c.pp.meangap()) for c in cells]
+        # noutput, ninput, sha = zip(*res)
         # print(pc.id(), sha[0:4], flush=True)
     return res
 
@@ -63,13 +55,18 @@ def prun2():
     return result()
 
 
+def fuzzy_equal(std, res):
+    return all([math.isclose(s, r) for s, r in zip(std, res)])
+
+
 def compare(std, res):
-    if std != res:
-        for i, s in enumerate(std):
-            if s != res[i]:
-                print(pc.id(), h.pnm.cells.o(i).lseed, i, s, res[i], flush=True)
-                break
-    assert std == res
+    for i, (s, r) in enumerate(zip(std, res)):
+        if not fuzzy_equal(s, r):
+            raise Exception(
+                "tqperf result mismatch: {} {} {} {} {}".format(
+                    pc.id(), h.pnm.cells.o(i).lseed, i, s, r
+                )
+            )
 
 
 def pr(args):
